@@ -1,0 +1,7 @@
+transformers
+torch
+annoy
+numpy
+tqdm
+jupyter
+notebook
