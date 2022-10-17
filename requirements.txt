@@ -5,3 +5,4 @@ numpy
 tqdm
 jupyter
 notebook
+datasets
