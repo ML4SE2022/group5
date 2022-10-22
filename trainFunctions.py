@@ -13,6 +13,7 @@ def tokenize_and_align_labels(examples):
     tokenizer = RobertaTokenizerFast.from_pretrained("microsoft/codebert-base", add_prefix_space=True)
 
     window_size = 510
+    # TODO: fix tokenization parsing issue
     tokenized_inputs = tokenizer(examples['tokens'], is_split_into_words=True, truncation=False,
                                     add_special_tokens=False)
     inputs_ = {'input_ids': [], 'labels': []}
@@ -52,7 +53,6 @@ def tokenize_and_align_labels(examples):
             inputs_new['m_labels'].append(copy_label)
             inputs_new['masks'].append(inputs_['labels'][i][j])
     return inputs_new
-
 
 
 class CustomModel(torch.nn.Module):

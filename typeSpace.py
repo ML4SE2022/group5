@@ -1,63 +1,60 @@
+import torch
+import numpy as np
+from annoy import AnnoyIndex
+from collections import defaultdict
+from tqdm.notebook import tqdm
 
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+KNN_TREE_SIZE = 20
+DISTANCE_METRIC = 'euclidean'
 
-def create_type_space(inputs=input_list[:4], labels=labels[:4]):
+def create_type_space(custom_model, inputs, m_labels, labels):
     """
     Creates the type space based on the inputs and their corresponding labels
     """
     
     # Make sure imputs are labeled
-    assert len(inputs) == len(labels)
+    assert len(inputs) == len(m_labels)
     
     # Cache the type space mappings
     computed_mapped_batches_train = []
+    computed_mapped_labels_train = []
     with torch.no_grad():
         
         # Iterate through the data set
-        for inp, label in zip(inputs, labels):
-            
-            # Tokenize the code
-            nl_tokens = tokenizer.tokenize("")
-            code_tokens = tokenizer.tokenize(inp)
-            tokens=[tokenizer.cls_token]+nl_tokens+[tokenizer.sep_token]+code_tokens+[tokenizer.sep_token]
-            tokens_ids=tokenizer.convert_tokens_to_ids(tokens)
+        for inp, m_label, label in zip(inputs, m_labels, labels):
             
             # Get the type space mapping from the model
-            output = custom_model.forward(torch.tensor(tokens_ids)[None,:])
+            output = custom_model(input_ids=torch.cat((inp, m_label), 0))
             
-            # Select masked tokens
-            masked_tokens = [c for c, token in enumerate(code_tokens) if token == "<mask>"]
-            
-            print(masked_tokens)
-            
-            # For this version, assume only one mask
-            assert len(masked_tokens) == 1
-            
-            # Selected only the masked tokens from the output
-            vals = output.logits.cpu().numpy()
-            predicted_masks = [vals[0][i] for i in masked_tokens]
+            print(output)
             
             # Cache the mapping of the masked token only
-            computed_mapped_batches_train.append(predicted_masks)
+            computed_mapped_batches_train.append(output)
+            computed_mapped_labels_train.append(label)
         
         # Create the type space
-        annoy_index = create_knn_index(computed_mapped_batches_train, None, computed_mapped_batches_train[0][0].size)
-    return annoy_index
+        print(computed_mapped_labels_train)
+        annoy_index = create_knn_index(computed_mapped_batches_train, None, computed_mapped_batches_train[0].shape[0])
+    return annoy_index, computed_mapped_labels_train
 
 def create_knn_index(train_types_embed: np.array, valid_types_embed: np.array, type_embed_dim:int) -> AnnoyIndex:
     """
-    Creates KNNs index for given type embedding vectors, taken from Type4Py
+    Creates KNNs index for given type embedding vectors
     """
     
     annoy_idx = AnnoyIndex(type_embed_dim, DISTANCE_METRIC)
 
     for i, v in enumerate(tqdm(train_types_embed, total=len(train_types_embed), desc="KNN index")):
-        print(v[0])
-        annoy_idx.add_item(i, v[0])
+        print(v)
+        annoy_idx.add_item(i, v)
+
+    # TODO: add valid type embeddings to space
 
     annoy_idx.build(KNN_TREE_SIZE)
     return annoy_idx
 
-def map_type(inputs=input_list[:4]):
+def map_type(custom_model, inputs, m_labels):
     """
     Maps an input to the type space
     """
@@ -65,29 +62,15 @@ def map_type(inputs=input_list[:4]):
         computed_embed_batches_test = []
         computed_embed_labels_test = []
         
-        for inp in inputs:
-
-            # Tokenize the code
-            nl_tokens = tokenizer.tokenize("")
-            code_tokens = tokenizer.tokenize(inp)
-            tokens=[tokenizer.cls_token]+nl_tokens+[tokenizer.sep_token]+code_tokens+[tokenizer.sep_token]
-            tokens_ids=tokenizer.convert_tokens_to_ids(tokens)
+        for inp, m_label in zip(inputs, m_labels):
             
             # Get the type space mapping from the model
-            output = custom_model.forward(torch.tensor(tokens_ids)[None,:])
+            output = custom_model(input_ids=torch.cat((inp, m_label), 0))
             
-            # Select masked tokens
-            masked_tokens = [c for c, token in enumerate(code_tokens) if token == "<mask>"]
-            
-            # For this version, assume only one mask
-            assert len(masked_tokens) == 1
-            
-            # Selected only the masked tokens from the output
-            vals = output.logits.cpu().numpy()
-            predicted_masks = [vals[0][i] for i in masked_tokens]
+            print(output)
 
             # Cache the mapping of the masked token only
-            computed_embed_batches_test.append(predicted_masks)
+            computed_embed_batches_test.append(output)
         
         return computed_embed_batches_test
 
@@ -101,7 +84,7 @@ def predict_type(types_embed_array: np.array, types_embed_labels: np.array, inde
     for i, embed_vec in enumerate(tqdm(types_embed_array, total=len(types_embed_array), desc="Finding KNNs & Prediction")):
         
         # Get the distances to the KNN
-        idx, dist = indexed_knn.get_nns_by_vector(embed_vec[0], k, include_distances=True)
+        idx, dist = indexed_knn.get_nns_by_vector(embed_vec, k, include_distances=True)
         
         # Compute the scores according to the formula
         pred_idx_scores = compute_types_score(dist, idx, types_embed_labels)

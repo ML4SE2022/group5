@@ -2,12 +2,14 @@ import torch
 import argparse
 import os
 
-from torch.utils.data.dataloader import DataLoader
 from datasets import load_dataset
-from transformers import RobertaModel
+from transformers import RobertaModel, RobertaTokenizerFast
 from trainFunctions import CustomModel, TripletDataset, TripletLoss, tokenize_and_align_labels
 from tqdm.notebook import tqdm
 
+from typeSpace import create_type_space, map_type, predict_type
+
+KNN_SEARCH_SIZE = 2
 
 def main():
     parser = argparse.ArgumentParser()
@@ -23,7 +25,7 @@ def main():
     parser.add_argument("--do_valid", default=False, type=bool,
                         help="Whether to run eval on the dev set.")
 
-    parser.add_argument("--train_batch_size", default=4, type=int,
+    parser.add_argument("--train_batch_size", default=1000, type=int,
                         help="Batch size per GPU/CPU for training.")
     parser.add_argument("--eval_batch_size", default=4, type=int,
                         help="Batch size per GPU/CPU for evaluation.")
@@ -58,7 +60,8 @@ def main():
 def train(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Using device:', device)
-    print()
+    print(torch.cuda.device(0))
+    print(torch.cuda.get_device_name(0))
 
     # Uncomment if you want to download the full dataset from hugging face
     #dataset = load_dataset ( ' kevinjesse /ManyTypes4TypeScript ')
@@ -70,9 +73,11 @@ def train(args):
 
     model = RobertaModel.from_pretrained("microsoft/codebert-base")
 
-    tokenized_hf = dataset.map(tokenize_and_align_labels, batched=True, remove_columns=['id', 'tokens', 'labels'])
+    tokenized_hf = dataset.map(tokenize_and_align_labels, batched=True, batch_size=args.train_batch_size, remove_columns=['id', 'tokens', 'labels'])
 
     print("Finished input tokenization")
+    
+    print(args.train_batch_size)
     
     #TODO: begins
     epochs = args.num_train_epochs
@@ -85,24 +90,34 @@ def train(args):
 
     for epoch in tqdm(range(epochs), desc="Epochs"):
         custom_model.train()
-        running_loss = []
-        for step in range(len(dataset)):
-            (t_a, t_p, t_n) = dataset.get_item_func(step)
-            
-            optimizer.zero_grad()
-            anchor_out = custom_model(input_ids=torch.cat((t_a[0][0], t_a[1]), 0))
-            positive_out = custom_model(input_ids=torch.cat((t_p[0][0], t_p[1]), 0))
-            negative_out = custom_model(input_ids=torch.cat((t_n[0][0], t_n[1]), 0))
-            
-            print(anchor_out)
-            
-            loss = criterion(anchor_out[0], positive_out[0], negative_out[0])
-            loss.backward()
-            optimizer.step()
+        for step in tqdm(range(len(dataset)), desc="Steps"):
+            if step == 0:
+                print(step)
+                (t_a, t_p, t_n) = dataset.get_item_func(step)
+                            
+                optimizer.zero_grad()
+                anchor_out = custom_model(input_ids=torch.cat((t_a[0][0], t_a[1]), 0))
+                positive_out = custom_model(input_ids=torch.cat((t_p[0][0], t_p[1]), 0))
+                negative_out = custom_model(input_ids=torch.cat((t_n[0][0], t_n[1]), 0))
+                                            
+                loss = criterion(anchor_out, positive_out, negative_out)
+                loss.backward()
+                optimizer.step()
     #TODO: Ends
 
-
-
+    space, computed_mapped_labels_train = create_type_space(custom_model, torch.tensor(tokenized_hf['train']['input_ids'][:10]), torch.tensor(tokenized_hf['train']['m_labels'][:10]), torch.tensor(tokenized_hf['train']['masks']))
+    print(space)
+    
+    mapped_types_test = map_type(custom_model, torch.tensor(tokenized_hf['test']['input_ids'][:10]), torch.tensor(tokenized_hf['test']['m_labels'][:10]))
+    print(mapped_types_test)
+    pred_types_embed, pred_types_score = predict_type(mapped_types_test, computed_mapped_labels_train, space, KNN_SEARCH_SIZE)
+    # print(pred_types_embed)
+    
+    tokenizer = RobertaTokenizerFast.from_pretrained("microsoft/codebert-base", add_prefix_space=True)
+    
+    print([ c for c, v in enumerate(tokenized_hf['test']['m_labels'][0]) if v == 50264 ])
+    print(list(zip([ tokenizer.decode(s) for s in tokenized_hf['test']['input_ids'][0] ], tokenized_hf['test']['m_labels'][0])))
+    print([ tokenizer.decode(s[0]) for s in pred_types_score[0] ] )
 
 if __name__ == "__main__":
     main()
