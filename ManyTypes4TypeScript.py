@@ -28,13 +28,13 @@ _DESCRIPTION = """\
 A type inference dataset. 
 """
 
-_URL = "full_processed_dataset/dataset/"
+_URL = "full_preprocessed_dataset/dataset/"
 _TRAINING_FILE0 = "train0.jsonl"
 _TRAINING_FILE1 = "train1.jsonl"
 _TRAINING_FILE2 = "train2.jsonl"
 # _TRAINING_FILE4 = "train4.jsonl"
-_DEV_FILE = "valid1.jsonl"
-_TEST_FILE = "test1.jsonl"
+_DEV_FILE = "valid.jsonl"
+_TEST_FILE = "test.jsonl"
 _VOCAB_FILE = "vocab_50000.txt"
 _HOMEPAGE = "https://huggingface.co/datasets/kevinjesse/ManyTypes4TypeScript"
 _VERSION = datasets.Version("1.0.0")
