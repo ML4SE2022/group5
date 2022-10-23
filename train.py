@@ -10,6 +10,7 @@ from tqdm import tqdm
 from typeSpace import create_type_space, map_type, predict_type
 
 KNN_SEARCH_SIZE = 2
+INTERVAL = 1000
 
 def main():
     parser = argparse.ArgumentParser()
@@ -93,6 +94,8 @@ def train(args):
         optimizer = torch.optim.Adam(custom_model.parameters(), lr=args.learning_rate, eps=args.adam_epsilon)
         criterion = torch.jit.script(TripletLoss())
 
+        count = 0
+
         for epoch in tqdm(range(epochs), desc="Epochs"):
             custom_model.train()
             for step in tqdm(range(len(dataset)), desc="Steps"):
@@ -101,6 +104,11 @@ def train(args):
                 mask[step] = False # Making sure that the similar pair is NOT the same as the given index
                 if len(mask.nonzero()) == 0:
                     continue
+                
+                if step > 0 and step % INTERVAL == 0:
+                    if args.output_dir is not None:
+                        torch.save(custom_model, args.output_dir + "/model_intermediary" + str(count) + ".pth")
+                    count += 1
                 
                 (t_a, t_p, t_n) = dataset.get_item_func(step)
                             
