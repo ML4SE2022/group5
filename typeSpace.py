@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from annoy import AnnoyIndex
 from collections import defaultdict
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 KNN_TREE_SIZE = 20
@@ -22,13 +22,11 @@ def create_type_space(custom_model, inputs, m_labels, labels):
     with torch.no_grad():
         
         # Iterate through the data set
-        for inp, m_label, label in zip(inputs, m_labels, labels):
+        for inp, m_label, label in tqdm(zip(inputs, m_labels, labels), total=len(inputs), desc="Create type space"):
             
             # Get the type space mapping from the model
             output = custom_model(input_ids=torch.cat((inp, m_label), 0))
-            
-            print(output)
-            
+                        
             # Cache the mapping of the masked token only
             computed_mapped_batches_train.append(output)
             computed_mapped_labels_train.append(label)
@@ -60,15 +58,12 @@ def map_type(custom_model, inputs, m_labels):
     """
     with torch.no_grad():
         computed_embed_batches_test = []
-        computed_embed_labels_test = []
         
-        for inp, m_label in zip(inputs, m_labels):
+        for inp, m_label in tqdm(zip(inputs, m_labels), total=len(inputs), desc="Map type"):
             
             # Get the type space mapping from the model
             output = custom_model(input_ids=torch.cat((inp, m_label), 0))
             
-            print(output)
-
             # Cache the mapping of the masked token only
             computed_embed_batches_test.append(output)
         

@@ -3,6 +3,7 @@ from typing import Tuple
 import torch
 from transformers import RobertaTokenizerFast
 
+WINDOW = 128
 
 def tokenize_and_align_labels(examples):
     def divide_chunks(l1, l2, n):
@@ -12,10 +13,15 @@ def tokenize_and_align_labels(examples):
     #fast tokenizer for roberta - please stick to the fast one or expect bugs and slowdown
     tokenizer = RobertaTokenizerFast.from_pretrained("microsoft/codebert-base", add_prefix_space=True)
 
-    window_size = 510
+    # print(len(tokenizer.get_vocab()))
+    # # for examples in tqdm(dataset['train']):
+    # for token in tqdm(examples['tokens']):
+    #     tokenizer.add_tokens(token)
+    # print(len(tokenizer.get_vocab()))
+
+    window_size = WINDOW - 2
     # TODO: fix tokenization parsing issue
-    tokenized_inputs = tokenizer(examples['tokens'], is_split_into_words=True, truncation=False,
-                                    add_special_tokens=False)
+    tokenized_inputs = tokenizer(examples['tokens'], is_split_into_words=True, truncation=True)
     inputs_ = {'input_ids': [], 'labels': []}
 
     for encoding, label in zip(tokenized_inputs.encodings, examples['labels']):
@@ -42,7 +48,7 @@ def tokenize_and_align_labels(examples):
     inputs_new = {'input_ids': [], 'm_labels': [], "masks": []}
 
     for i in range(len(inputs_['labels'])):
-        if len(inputs_['input_ids'][i]) != 512:
+        if len(inputs_['input_ids'][i]) != WINDOW:
             continue    
         for j in range(len(inputs_['labels'][i])):
             if inputs_['labels'][i][j]==-100:
@@ -56,7 +62,7 @@ def tokenize_and_align_labels(examples):
 
 
 class CustomModel(torch.nn.Module):
-    def __init__(self, model, d, codebert_output_dim = 393216, input_dim = 512): # 50265 + sep + 512 (labels) = 50778
+    def __init__(self, model, d, codebert_output_dim = 768 * WINDOW, input_dim = WINDOW): # 50265 + sep + 512 (labels) = 50778
         super(CustomModel, self).__init__() 
         self.d = d
         self.model = model
@@ -67,7 +73,7 @@ class CustomModel(torch.nn.Module):
     
     def forward(self, input_ids=None, attention_mask=None):
         
-        assert input_ids.shape[0] == 1024
+        assert input_ids.shape[0] == WINDOW * 2
         
         tokens, labels = torch.split(input_ids, self.input_dim)
         

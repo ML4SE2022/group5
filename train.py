@@ -5,7 +5,7 @@ import os
 from datasets import load_dataset
 from transformers import RobertaModel, RobertaTokenizerFast
 from trainFunctions import CustomModel, TripletDataset, TripletLoss, tokenize_and_align_labels
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 
 from typeSpace import create_type_space, map_type, predict_type
 
@@ -69,30 +69,32 @@ def train(args):
     #load the small selected local dataset using the py script 
     dataset = load_dataset('ManyTypes4TypeScript.py', ignore_verifications=True)
     
+    print(len(dataset['train']))
     print("Dataset loaded")
 
     model = RobertaModel.from_pretrained("microsoft/codebert-base")
 
     tokenized_hf = dataset.map(tokenize_and_align_labels, batched=True, batch_size=args.train_batch_size, remove_columns=['id', 'tokens', 'labels'])
 
+
+    print(len(tokenized_hf['train']))
     print("Finished input tokenization")
     
     print(args.train_batch_size)
-    
-    #TODO: begins
-    epochs = args.num_train_epochs
+      
+    if args.do_train:  
+        #TODO: begins
+        epochs = args.num_train_epochs
 
-    custom_model = CustomModel(model, args.custom_model_d)
-    dataset = TripletDataset(torch.tensor(tokenized_hf['train']['input_ids']), m_labels=torch.tensor(tokenized_hf['train']['m_labels']), labels=torch.tensor(tokenized_hf['train']['masks']), dataset_name="train")
+        custom_model = CustomModel(model, args.custom_model_d)
+        dataset = TripletDataset(torch.tensor(tokenized_hf['train']['input_ids']), m_labels=torch.tensor(tokenized_hf['train']['m_labels']), labels=torch.tensor(tokenized_hf['train']['masks']), dataset_name="train")
 
-    optimizer = torch.optim.Adam(custom_model.parameters(), lr=args.learning_rate, eps=args.adam_epsilon)
-    criterion = torch.jit.script(TripletLoss())
+        optimizer = torch.optim.Adam(custom_model.parameters(), lr=args.learning_rate, eps=args.adam_epsilon)
+        criterion = torch.jit.script(TripletLoss())
 
-    for epoch in tqdm(range(epochs), desc="Epochs"):
-        custom_model.train()
-        for step in tqdm(range(len(dataset)), desc="Steps"):
-            if step == 0:
-                print(step)
+        for epoch in tqdm(range(epochs), desc="Epochs"):
+            custom_model.train()
+            for step in tqdm(range(len(dataset)), desc="Steps"):
                 (t_a, t_p, t_n) = dataset.get_item_func(step)
                             
                 optimizer.zero_grad()
@@ -103,21 +105,25 @@ def train(args):
                 loss = criterion(anchor_out, positive_out, negative_out)
                 loss.backward()
                 optimizer.step()
-    #TODO: Ends
-
-    space, computed_mapped_labels_train = create_type_space(custom_model, torch.tensor(tokenized_hf['train']['input_ids'][:10]), torch.tensor(tokenized_hf['train']['m_labels'][:10]), torch.tensor(tokenized_hf['train']['masks']))
-    print(space)
+        #TODO: Ends
+        if args.output_dir is not None:
+            torch.save(custom_model, args.output_dir + "/model.pth")
     
-    mapped_types_test = map_type(custom_model, torch.tensor(tokenized_hf['test']['input_ids'][:10]), torch.tensor(tokenized_hf['test']['m_labels'][:10]))
-    print(mapped_types_test)
-    pred_types_embed, pred_types_score = predict_type(mapped_types_test, computed_mapped_labels_train, space, KNN_SEARCH_SIZE)
-    # print(pred_types_embed)
-    
-    tokenizer = RobertaTokenizerFast.from_pretrained("microsoft/codebert-base", add_prefix_space=True)
-    
-    print([ c for c, v in enumerate(tokenized_hf['test']['m_labels'][0]) if v == 50264 ])
-    print(list(zip([ tokenizer.decode(s) for s in tokenized_hf['test']['input_ids'][0] ], tokenized_hf['test']['m_labels'][0])))
-    print([ tokenizer.decode(s[0]) for s in pred_types_score[0] ] )
+    if args.do_eval:
+        custom_model = torch.load(args.output_dir + "/model.pth")
+        custom_model.eval()
+        space, computed_mapped_labels_train = create_type_space(custom_model, torch.tensor(tokenized_hf['train']['input_ids']), torch.tensor(tokenized_hf['train']['m_labels']), torch.tensor(tokenized_hf['train']['masks']))
+        print(space)
+        mapped_types_test = map_type(custom_model, torch.tensor(tokenized_hf['test']['input_ids']), torch.tensor(tokenized_hf['test']['m_labels']))
+        print(mapped_types_test)
+        pred_types_embed, pred_types_score = predict_type(mapped_types_test, computed_mapped_labels_train, space, KNN_SEARCH_SIZE)
+        # print(pred_types_embed)
+        
+        tokenizer = RobertaTokenizerFast.from_pretrained("microsoft/codebert-base", add_prefix_space=True)
+        
+        print([ c for c, v in enumerate(tokenized_hf['test']['m_labels'][0]) if v == 50264 ])
+        print(list(zip([ tokenizer.decode(s) for s in tokenized_hf['test']['input_ids'][0] ], tokenized_hf['test']['m_labels'][0])))
+        print([ tokenizer.decode(s[0]) for s in pred_types_score[0] ] )
 
 if __name__ == "__main__":
     main()
