@@ -87,7 +87,8 @@ def train(args):
         epochs = args.num_train_epochs
 
         custom_model = CustomModel(model, args.custom_model_d)
-        dataset = TripletDataset(torch.tensor(tokenized_hf['train']['input_ids']), m_labels=torch.tensor(tokenized_hf['train']['m_labels']), labels=torch.tensor(tokenized_hf['train']['masks']), dataset_name="train")
+        labels = torch.tensor(tokenized_hf['train']['masks'])
+        dataset = TripletDataset(torch.tensor(tokenized_hf['train']['input_ids']), m_labels=torch.tensor(tokenized_hf['train']['m_labels']), labels=labels, dataset_name="train")
 
         optimizer = torch.optim.Adam(custom_model.parameters(), lr=args.learning_rate, eps=args.adam_epsilon)
         criterion = torch.jit.script(TripletLoss())
@@ -95,6 +96,12 @@ def train(args):
         for epoch in tqdm(range(epochs), desc="Epochs"):
             custom_model.train()
             for step in tqdm(range(len(dataset)), desc="Steps"):
+                # Skip instances that have only a signle occurance.
+                mask = labels == labels[step]
+                mask[step] = False # Making sure that the similar pair is NOT the same as the given index
+                if len(mask.nonzero()) == 0:
+                    continue
+                
                 (t_a, t_p, t_n) = dataset.get_item_func(step)
                             
                 optimizer.zero_grad()
