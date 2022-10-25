@@ -2,6 +2,7 @@ from annoy import AnnoyIndex
 import torch
 import argparse
 import os
+import numpy as np
 import torchmetrics
 
 from datasets import load_dataset
@@ -161,40 +162,56 @@ def train(args):
         # print(list(zip([ tokenizer.decode(s) for s in tokenized_hf['test']['input_ids'][0] ], tokenized_hf['test']['m_labels'][0])))
         # print([ s[0] ] for s in pred_types_score[0] )
         # print([ tokenizer.decode(s[0]) for s in pred_types_score[0] ] )
-        
-        # print(pred_types_score)
+        # print(pred_types_embed[0])
+        # print(pred_types_score[0])
         # preds = torch.tensor(pred_types_score)
         preds = torch.tensor([ [ p[0] for p in prediction ] for prediction in pred_types_score ])
-        print(preds)
+        # print(preds)
         target = torch.tensor(tokenized_hf['test']['masks'])
-        print(target)
+        # print(target)
         
-        print("ACCURACY:")
+        print("EXACT MATCH ACCURACY:")
         
         true_pos = 0
-        count = 0
+        count = -1
         for prediction in preds:
+            count += 1
             for p in prediction:
                 if p == target[count]:
-                    print((prediction, target[count]))
+                    # print((prediction, target[count]))
                     true_pos += 1
                     break
-            count += 1
         accuracy = true_pos / count
         print("TOP 8: " + str(accuracy))
         
         true_pos = 0
-        count = 0
+        top_1 = []
+        count = -1
         for prediction in preds:
+            count += 1
+            top_1.append(prediction[0].item())
             if prediction[0] == target[count]:
                 true_pos += 1
-                break
-            count += 1
         accuracy = true_pos / count
         print("TOP 1: " + str(accuracy))
         
+        
+        print(tokenized_hf['test']['masks'])
+        print(top_1)
+        # scores = calculate_scores(tokenized_hf['test']['masks'], top_1)
+        # print(scores)
+        
         # accuracy = torchmetrics.functional.classification.multiclass_accuracy(preds, target, num_classes=8)
         # print(accuracy)
+
+# def calculate_scores(answers, predictions):
+#     Acc = []
+#     for key in answers:
+#         Acc.append(answers[key] == predictions[key])
+
+#     scores = {}
+#     scores['Acc'] = np.mean(Acc)
+#     return scores
 
 if __name__ == "__main__":
     main()
