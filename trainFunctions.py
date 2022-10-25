@@ -86,7 +86,6 @@ class CustomModel(torch.nn.Module):
         
         return final_output_tensor
 
-
 class TripletLoss(torch.nn.Module):
     def __init__(self, margin=1.0):
         super(TripletLoss, self).__init__()
@@ -139,6 +138,9 @@ class TripletDataset(torch.utils.data.Dataset):
 
     def get_item_test(self, index: int) -> Tuple[Tuple[torch.Tensor, torch.Tensor], list, list]:
         return (self.data[index], self.labels[index]), [], []
+
+    def get_single_item(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        return (self.data[index], self.m_labels[index])
     
     def __getitem__(self, index: int) -> Tuple[Tuple[torch.Tensor, torch.Tensor],
                                          Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]]:
