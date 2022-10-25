@@ -21,6 +21,8 @@ def main():
 
     parser.add_argument("--do_train", default=False, type=bool,
                         help="Whether to run training.")
+    parser.add_argument("--train_classification", default=False, type=bool,
+                        help="Whether to train the classification.")
     parser.add_argument("--do_eval", default=False, type=bool,
                         help="Whether to run eval on the test set.")
     parser.add_argument("--do_valid", default=False, type=bool,
@@ -92,7 +94,7 @@ def train(args):
         dataset = TripletDataset(torch.tensor(tokenized_hf['train']['input_ids']), m_labels=torch.tensor(tokenized_hf['train']['m_labels']), labels=labels, dataset_name="train")
 
         optimizer = torch.optim.Adam(custom_model.parameters(), lr=args.learning_rate, eps=args.adam_epsilon)
-        criterion = torch.jit.script(TripletLoss())
+        criterion = torch.jit.script(TripletLoss()) if not args.train_classification else torch.jit.script(torch.nn.CrossEntropyLoss())
 
         count = 0
 
@@ -109,18 +111,27 @@ def train(args):
                     if args.output_dir is not None:
                         torch.save(custom_model, args.output_dir + "/model_intermediary" + str(count) + ".pth")
                     count += 1
-                
-                (t_a, t_p, t_n) = dataset.get_item_func(step)
-                            
-                optimizer.zero_grad()
-                anchor_out = custom_model(input_ids=torch.cat((t_a[0][0], t_a[1]), 0))
-                positive_out = custom_model(input_ids=torch.cat((t_p[0][0], t_p[1]), 0))
-                negative_out = custom_model(input_ids=torch.cat((t_n[0][0], t_n[1]), 0))
-                                            
-                loss = criterion(anchor_out, positive_out, negative_out)
+                if not args.train_classification:
+                    (t_a, t_p, t_n) = dataset.get_item_func(step)
+                                
+                    optimizer.zero_grad()
+                    anchor_out = custom_model(input_ids=torch.cat((t_a[0][0], t_a[1]), 0))
+                    positive_out = custom_model(input_ids=torch.cat((t_p[0][0], t_p[1]), 0))
+                    negative_out = custom_model(input_ids=torch.cat((t_n[0][0], t_n[1]), 0))
+                                                
+                    loss = criterion(anchor_out, positive_out, negative_out)
+                else:
+                    t = dataset.get_single_item(step)
+                    optimizer.zero_grad()
+
+                    t_out = custom_model(input_ids=torch.cat((t[0][0], t[1]), 0))
+                    # Get the position of the BERT-specific separation token.
+                    masked_label_position = (t[1] == 50264).nonzero(as_tuple=True)[0].item()
+                    target = torch.nn.functional.one_hot(torch.tensor([masked_label_position]), args.custom_model_d).squeeze(0).double()
+                    
+                    loss = criterion(t_out, target)
                 loss.backward()
                 optimizer.step()
-        #TODO: Ends
         if args.output_dir is not None:
             torch.save(custom_model, args.output_dir + "/model.pth")
     
