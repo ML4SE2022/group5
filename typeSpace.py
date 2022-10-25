@@ -35,7 +35,7 @@ def create_type_space(custom_model, inputs, m_labels, labels):
             computed_mapped_batches_train.append(output)
             computed_mapped_labels_train.append(label)
         
-            if i > 0 and i % 100 == 0:
+            if i > 0 and i % 1000 == 0:
                 annoy_index = create_knn_index(annoy_idx, computed_mapped_batches_train, None, computed_mapped_batches_train[0].shape[0], count)
                 count += 1
         
