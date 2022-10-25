@@ -126,17 +126,17 @@ def train(args):
         if args.output_dir is not None:
             torch.save(custom_model, args.output_dir + "/model.pth")
     
-    LAST_MODEL = "/model_intermediary2.pth"
+    LAST_MODEL = "/model_intermediary40.pth"
     
     if args.do_eval:
         custom_model = torch.load(args.output_dir + LAST_MODEL)
         custom_model.eval()
-        if not os.path.isfile(args.output_dir + "/space.ann"):
+        if not os.path.isfile(args.output_dir + "/space_intermediary40.ann"):
             space, computed_mapped_labels_train = create_type_space(custom_model, torch.tensor(tokenized_hf['train']['input_ids']), torch.tensor(tokenized_hf['train']['m_labels']), torch.tensor(tokenized_hf['train']['masks']))
             space.save(args.output_dir + '/space.ann')
         else:
             space = AnnoyIndex(8, DISTANCE_METRIC)
-            space.load(args.output_dir + "/space.ann")
+            space.load(args.output_dir + "/space_intermediaryX.ann")
             computed_mapped_labels_train = []
             for label in torch.tensor(tokenized_hf['train']['masks']):
                 computed_mapped_labels_train.append(label)
@@ -148,7 +148,13 @@ def train(args):
         
         with open("50k_types/vocab_50000.txt") as f:
             lines = dict(enumerate(f.readlines()))
-            print([ lines[s[0]] for s in pred_types_score[0] ])
+            # print([ s for s in set(pred_types_score[0]) ])
+            # print([ s[0].item() for s in pred_types_score[0] ])
+            predictions = dict()
+            for p in pred_types_score[0]:
+                predictions[p[0]] = p[1]
+            print(predictions)
+            print([ lines[s[0].item()] for s in predictions.items() ])
                 
         # tokenizer = RobertaTokenizerFast.from_pretrained("microsoft/codebert-base", add_prefix_space=True)
         # print([ c for c, v in enumerate(tokenized_hf['test']['m_labels'][0]) if v == 50264 ])

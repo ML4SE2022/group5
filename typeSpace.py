@@ -1,3 +1,4 @@
+import copy
 import torch
 import numpy as np
 from annoy import AnnoyIndex
@@ -21,8 +22,11 @@ def create_type_space(custom_model, inputs, m_labels, labels):
     computed_mapped_labels_train = []
     with torch.no_grad():
         
+        annoy_idx = AnnoyIndex(8, DISTANCE_METRIC)
+        count = 0
+        
         # Iterate through the data set
-        for inp, m_label, label in tqdm(zip(inputs, m_labels, labels), total=len(inputs), desc="Create type space"):
+        for i, (inp, m_label, label) in tqdm(enumerate(zip(inputs, m_labels, labels)), total=len(inputs), desc="Create type space"):
             
             # Get the type space mapping from the model
             output = custom_model(input_ids=torch.cat((inp, m_label), 0))
@@ -31,25 +35,33 @@ def create_type_space(custom_model, inputs, m_labels, labels):
             computed_mapped_batches_train.append(output)
             computed_mapped_labels_train.append(label)
         
+            if i > 0 and i % 100 == 0:
+                annoy_index = create_knn_index(annoy_idx, computed_mapped_batches_train, None, computed_mapped_batches_train[0].shape[0], count)
+                count += 1
+        
+        annoy_index = create_knn_index(annoy_idx, computed_mapped_batches_train, None, computed_mapped_batches_train[0].shape[0], count)
+        annoy_idx.build(KNN_TREE_SIZE)
+
         # Create the type space
-        print(computed_mapped_labels_train)
-        annoy_index = create_knn_index(computed_mapped_batches_train, None, computed_mapped_batches_train[0].shape[0])
+        # print(computed_mapped_labels_train)
+        # annoy_index = create_knn_index(computed_mapped_batches_train, None, computed_mapped_batches_train[0].shape[0])
     return annoy_index, computed_mapped_labels_train
 
-def create_knn_index(train_types_embed: np.array, valid_types_embed: np.array, type_embed_dim:int) -> AnnoyIndex:
+def create_knn_index(annoy_idx: AnnoyIndex, train_types_embed: np.array, valid_types_embed: np.array, type_embed_dim:int, count: int) -> AnnoyIndex:
     """
     Creates KNNs index for given type embedding vectors
     """
     
-    annoy_idx = AnnoyIndex(type_embed_dim, DISTANCE_METRIC)
-
     for i, v in enumerate(tqdm(train_types_embed, total=len(train_types_embed), desc="KNN index")):
-        print(v)
         annoy_idx.add_item(i, v)
+        
+    annoy_idx.build(KNN_TREE_SIZE)
+    annoy_idx.save("type-model/space_intermediary" + str(count) + ".ann")
 
     # TODO: add valid type embeddings to space
+    annoy_idx.unload()
+    annoy_idx.unbuild()
 
-    annoy_idx.build(KNN_TREE_SIZE)
     return annoy_idx
 
 def map_type(custom_model, inputs, m_labels):
