@@ -162,13 +162,39 @@ def train(args):
         # print([ s[0] ] for s in pred_types_score[0] )
         # print([ tokenizer.decode(s[0]) for s in pred_types_score[0] ] )
         
-        preds = torch.tensor([ p[0] for p in pred_types_score ])
+        # print(pred_types_score)
+        # preds = torch.tensor(pred_types_score)
+        preds = torch.tensor([ [ p[0] for p in prediction ] for prediction in pred_types_score ])
         print(preds)
         target = torch.tensor(tokenized_hf['test']['masks'])
         print(target)
         
-        accuracy = torchmetrics.Accuracy()
-        accuracy(preds, target)
+        print("ACCURACY:")
+        
+        true_pos = 0
+        count = 0
+        for prediction in preds:
+            for p in prediction:
+                if p == target[count]:
+                    print((prediction, target[count]))
+                    true_pos += 1
+                    break
+            count += 1
+        accuracy = true_pos / count
+        print("TOP 8: " + str(accuracy))
+        
+        true_pos = 0
+        count = 0
+        for prediction in preds:
+            if prediction[0] == target[count]:
+                true_pos += 1
+                break
+            count += 1
+        accuracy = true_pos / count
+        print("TOP 1: " + str(accuracy))
+        
+        # accuracy = torchmetrics.functional.classification.multiclass_accuracy(preds, target, num_classes=8)
+        # print(accuracy)
 
 if __name__ == "__main__":
     main()
