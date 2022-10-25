@@ -111,7 +111,7 @@ def train(args):
                 
                 if step > 0 and step % INTERVAL == 0:
                     if args.output_dir is not None:
-                        torch.save(custom_model, args.output_dir + "/model_intermediary" + str(count) + ".pth")
+                        torch.save(custom_model, args.output_dir + "/model_intermediary" + ("_classification" if args.train_classification else "") + str(count) + ".pth")
                     count += 1
                 if not args.train_classification:
                     (t_a, t_p, t_n) = dataset.get_item_func(step)
