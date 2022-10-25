@@ -6,3 +6,4 @@ tqdm
 jupyter
 notebook
 datasets
+torchmetrics
