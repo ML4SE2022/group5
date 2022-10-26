@@ -5,6 +5,15 @@ from transformers import RobertaTokenizerFast
 
 WINDOW = 128
 
+def classification_prediction(model, inp, labels, k = 8):
+    model_output = model(torch.cat(inp, labels, 0))
+    probs = torch.nn.Softmax(model_output)
+    torch.argmax(probs)
+    _, indices = torch.topk(8)
+
+    return indices
+    
+
 def tokenize_and_align_labels(examples):
     def divide_chunks(l1, l2, n):
         for i in range(0, len(l1), n):

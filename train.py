@@ -7,7 +7,7 @@ import torchmetrics
 
 from datasets import load_dataset
 from transformers import RobertaModel, RobertaTokenizerFast
-from trainFunctions import CustomModel, TripletDataset, TripletLoss, tokenize_and_align_labels
+from trainFunctions import CustomModel, TripletDataset, TripletLoss, classification_prediction, tokenize_and_align_labels
 from tqdm import tqdm
 
 from typeSpace import create_type_space, map_type, predict_type, DISTANCE_METRIC
@@ -21,7 +21,8 @@ def main():
     ## Required parameters
     parser.add_argument("--output_dir", default="type-model", type=str, required=False,
                         help="The output directory where the model predictions and checkpoints will be written.")
-
+    parser.add_argument("--evaluate_classification", default=False, type=bool,
+                        help="Whether to validate a classificaiton model.")
     parser.add_argument("--do_train", default=False, type=bool,
                         help="Whether to run training.")
     parser.add_argument("--do_eval", default=False, type=bool,
@@ -128,9 +129,10 @@ def train(args):
             torch.save(custom_model, args.output_dir + "/model.pth")
     
     LAST_MODEL = "/model_intermediary40.pth"
+    LAST_CLASS_MODEL = "/model_intermediary_classification9.pth"
     
     if args.do_eval:
-        custom_model = torch.load(args.output_dir + LAST_MODEL)
+        custom_model = torch.load(args.output_dir + (LAST_MODEL if not args.evaluate_classification else LAST_CLASS_MODEL)) 
         custom_model.eval()
         if not os.path.isfile(args.output_dir + "/space_intermediary191.ann"):
             space, computed_mapped_labels_train = create_type_space(custom_model, torch.tensor(tokenized_hf['train']['input_ids']), torch.tensor(tokenized_hf['train']['m_labels']), torch.tensor(tokenized_hf['train']['masks']))
@@ -148,30 +150,34 @@ def train(args):
         for n in eval_numbers:
             custom_model = torch.load(args.output_dir + "/model_intermediary" + str(n) + ".pth")
             custom_model.eval()
-            mapped_types_test = map_type(custom_model, torch.tensor(tokenized_hf['test']['input_ids'][:10000]), torch.tensor(tokenized_hf['test']['m_labels'][:10000]))
-            # print(mapped_types_test)
-            pred_types_embed, pred_types_score = predict_type(mapped_types_test, computed_mapped_labels_train, space, KNN_SEARCH_SIZE)
-            # print(pred_types_embed)
-            
-            with open("50k_types/vocab_50000.txt") as f:
-                lines = dict(enumerate(f.readlines()))
-                # print([ s for s in set(pred_types_score[0]) ])
-                # print([ s[0].item() for s in pred_types_score[0] ])
-                predictions = dict()
-                for p in pred_types_score[0]:
-                    predictions[p[0]] = p[1]
-                print(predictions)
-                print([ lines[s[0].item()] for s in predictions.items() ])
-                    
-            # tokenizer = RobertaTokenizerFast.from_pretrained("microsoft/codebert-base", add_prefix_space=True)
-            # print([ c for c, v in enumerate(tokenized_hf['test']['m_labels'][0]) if v == 50264 ])
-            # print(list(zip([ tokenizer.decode(s) for s in tokenized_hf['test']['input_ids'][0] ], tokenized_hf['test']['m_labels'][0])))
-            # print([ s[0] ] for s in pred_types_score[0] )
-            # print([ tokenizer.decode(s[0]) for s in pred_types_score[0] ] )
-            # print(pred_types_embed[0])
-            # print(pred_types_score[0])
-            # preds = torch.tensor(pred_types_score)
-            preds = torch.tensor([ [ p[0] for p in prediction ] for prediction in pred_types_score ])
+
+            if not args.evaluate_classification:
+                mapped_types_test = map_type(custom_model, torch.tensor(tokenized_hf['test']['input_ids'][:10000]), torch.tensor(tokenized_hf['test']['m_labels'][:10000]))
+                # print(mapped_types_test)
+                pred_types_embed, pred_types_score = predict_type(mapped_types_test, computed_mapped_labels_train, space, KNN_SEARCH_SIZE)
+                # print(pred_types_embed)
+                
+                with open("50k_types/vocab_50000.txt") as f:
+                    lines = dict(enumerate(f.readlines()))
+                    # print([ s for s in set(pred_types_score[0]) ])
+                    # print([ s[0].item() for s in pred_types_score[0] ])
+                    predictions = dict()
+                    for p in pred_types_score[0]:
+                        predictions[p[0]] = p[1]
+                    print(predictions)
+                    print([ lines[s[0].item()] for s in predictions.items() ])
+                        
+                # tokenizer = RobertaTokenizerFast.from_pretrained("microsoft/codebert-base", add_prefix_space=True)
+                # print([ c for c, v in enumerate(tokenized_hf['test']['m_labels'][0]) if v == 50264 ])
+                # print(list(zip([ tokenizer.decode(s) for s in tokenized_hf['test']['input_ids'][0] ], tokenized_hf['test']['m_labels'][0])))
+                # print([ s[0] ] for s in pred_types_score[0] )
+                # print([ tokenizer.decode(s[0]) for s in pred_types_score[0] ] )
+                # print(pred_types_embed[0])
+                # print(pred_types_score[0])
+                # preds = torch.tensor(pred_types_score)
+                preds = torch.tensor([ [ p[0] for p in prediction ] for prediction in pred_types_score ])
+            else:
+                preds = classification_prediction(custom_model, torch.tensor(tokenized_hf['test']['input_ids'][:10000]), torch.tensor(tokenized_hf['test']['m_labels'][:10000]))
             # print(preds)
             target = torch.tensor(tokenized_hf['test']['masks'])
             # print(target)
