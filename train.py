@@ -132,23 +132,30 @@ def train(args):
     LAST_CLASS_MODEL = "/model_intermediary_classification9.pth"
     
     if args.do_eval:
-        custom_model = torch.load(args.output_dir + (LAST_MODEL if not args.evaluate_classification else LAST_CLASS_MODEL)) 
-        custom_model.eval()
-        if not os.path.isfile(args.output_dir + "/space_intermediary191.ann"):
-            space, computed_mapped_labels_train = create_type_space(custom_model, torch.tensor(tokenized_hf['train']['input_ids']), torch.tensor(tokenized_hf['train']['m_labels']), torch.tensor(tokenized_hf['train']['masks']))
-            space.save(args.output_dir + '/space.ann')
+        if not args.evaluate_classification:
+
+            custom_model = torch.load(args.output_dir + LAST_MODEL) 
+            custom_model.eval()
+            if not os.path.isfile(args.output_dir + "/space_intermediary191.ann"):
+                space, computed_mapped_labels_train = create_type_space(custom_model, torch.tensor(tokenized_hf['train']['input_ids']), torch.tensor(tokenized_hf['train']['m_labels']), torch.tensor(tokenized_hf['train']['masks']))
+                space.save(args.output_dir + '/space.ann')
+            else:
+                space = AnnoyIndex(8, DISTANCE_METRIC)
+                space.load(args.output_dir + "/space_intermediary191.ann")
+                computed_mapped_labels_train = []
+                for label in torch.tensor(tokenized_hf['train']['masks']):
+                    computed_mapped_labels_train.append(label)
+            print(space)
+            eval_numbers = [40, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+            accuracies = []
         else:
-            space = AnnoyIndex(8, DISTANCE_METRIC)
-            space.load(args.output_dir + "/space_intermediary191.ann")
-            computed_mapped_labels_train = []
-            for label in torch.tensor(tokenized_hf['train']['masks']):
-                computed_mapped_labels_train.append(label)
-        print(space)
-        eval_numbers = [40, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        accuracies = []
+            custom_model = torch.load(args.output_dir + LAST_CLASS_MODEL) 
+            custom_model.eval()
+            eval_numbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+            accuracies = []
         
         for n in eval_numbers:
-            custom_model = torch.load(args.output_dir + "/model_intermediary" + str(n) + ".pth")
+            custom_model = torch.load(args.output_dir + "/model_intermediary" + ("classification" if args.evaluate_classification else "") + str(n) + ".pth")
             custom_model.eval()
 
             if not args.evaluate_classification:
