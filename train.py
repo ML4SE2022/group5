@@ -151,11 +151,11 @@ def train(args):
         else:
             custom_model = torch.load(args.output_dir + LAST_CLASS_MODEL) 
             custom_model.eval()
-            eval_numbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+            eval_numbers = [9, 0,  1, 2, 3, 4, 5, 6, 7, 8]
             accuracies = []
         
         for n in eval_numbers:
-            custom_model = torch.load(args.output_dir + "/model_intermediary" + ("classification" if args.evaluate_classification else "") + str(n) + ".pth")
+            custom_model = torch.load(args.output_dir + "/model_intermediary" + ("_classification" if args.evaluate_classification else "") + str(n) + ".pth")
             custom_model.eval()
 
             if not args.evaluate_classification:
@@ -184,8 +184,7 @@ def train(args):
                 # preds = torch.tensor(pred_types_score)
                 preds = torch.tensor([ [ p[0] for p in prediction ] for prediction in pred_types_score ])
             else:
-                preds = classification_prediction(custom_model, torch.tensor(tokenized_hf['test']['input_ids'][:10000]), torch.tensor(tokenized_hf['test']['m_labels'][:10000]))
-            # print(preds)
+                preds = [classification_prediction(custom_model, torch.tensor(tokenized_hf['test']['input_ids'][i]), torch.tensor(tokenized_hf['test']['m_labels'][i])) for i in range(10000)]            # print(preds)
             target = torch.tensor(tokenized_hf['test']['masks'])
             # print(target)
             
@@ -217,7 +216,7 @@ def train(args):
             count = -1
             for prediction in preds:
                 count += 1
-                top_1.append(prediction[0].item())
+                # top_1.append(prediction[0].item())
                 if prediction[0] == target[count]:
                     true_pos += 1
             accuracy = true_pos / count

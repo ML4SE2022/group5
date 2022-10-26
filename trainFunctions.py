@@ -6,12 +6,11 @@ from transformers import RobertaTokenizerFast
 WINDOW = 128
 
 def classification_prediction(model, inp, labels, k = 8):
-    model_output = model(torch.cat(inp, labels, 0))
-    probs = torch.nn.Softmax(model_output)
-    torch.argmax(probs)
-    _, indices = torch.topk(8)
+    model_output = model(torch.cat((inp, labels), 0))
+    probs = torch.nn.Softmax(model_output).dim
+    _, indices = torch.topk(probs, 8)
 
-    return indices
+    return indices.tolist()
     
 
 def tokenize_and_align_labels(examples):
