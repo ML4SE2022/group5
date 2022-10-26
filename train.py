@@ -132,12 +132,12 @@ def train(args):
     if args.do_eval:
         custom_model = torch.load(args.output_dir + LAST_MODEL)
         custom_model.eval()
-        if not os.path.isfile(args.output_dir + "/space_intermediary40.ann"):
+        if not os.path.isfile(args.output_dir + "/space_intermediary191.ann"):
             space, computed_mapped_labels_train = create_type_space(custom_model, torch.tensor(tokenized_hf['train']['input_ids']), torch.tensor(tokenized_hf['train']['m_labels']), torch.tensor(tokenized_hf['train']['masks']))
             space.save(args.output_dir + '/space.ann')
         else:
             space = AnnoyIndex(8, DISTANCE_METRIC)
-            space.load(args.output_dir + "/space_intermediaryX.ann")
+            space.load(args.output_dir + "/space_intermediary191.ann")
             computed_mapped_labels_train = []
             for label in torch.tensor(tokenized_hf['train']['masks']):
                 computed_mapped_labels_train.append(label)
@@ -174,15 +174,24 @@ def train(args):
         
         true_pos = 0
         count = -1
+        mrr = 0
         for prediction in preds:
             count += 1
-            for p in prediction:
+            rank_i = 0
+            for i, p in enumerate(prediction):
                 if p == target[count]:
                     # print((prediction, target[count]))
+                    if rank_i == 0:
+                        rank_i = i + 1
                     true_pos += 1
                     break
+            if rank_i != 0:
+                mrr += 1 / rank_i
+        mrr = mrr / count
         accuracy = true_pos / count
         print("TOP 8: " + str(accuracy))
+        print("MRR@8: " + str(mrr))
+        
         
         true_pos = 0
         top_1 = []
@@ -196,8 +205,8 @@ def train(args):
         print("TOP 1: " + str(accuracy))
         
         
-        print(tokenized_hf['test']['masks'])
-        print(top_1)
+        # print(tokenized_hf['test']['masks'])
+        # print(top_1)
         # scores = calculate_scores(tokenized_hf['test']['masks'], top_1)
         # print(scores)
         
