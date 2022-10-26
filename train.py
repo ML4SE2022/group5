@@ -142,69 +142,78 @@ def train(args):
             for label in torch.tensor(tokenized_hf['train']['masks']):
                 computed_mapped_labels_train.append(label)
         print(space)
-        mapped_types_test = map_type(custom_model, torch.tensor(tokenized_hf['test']['input_ids']), torch.tensor(tokenized_hf['test']['m_labels']))
-        # print(mapped_types_test)
-        pred_types_embed, pred_types_score = predict_type(mapped_types_test, computed_mapped_labels_train, space, KNN_SEARCH_SIZE)
-        # print(pred_types_embed)
+        eval_numbers = [40, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        accuracies = []
         
-        with open("50k_types/vocab_50000.txt") as f:
-            lines = dict(enumerate(f.readlines()))
-            # print([ s for s in set(pred_types_score[0]) ])
-            # print([ s[0].item() for s in pred_types_score[0] ])
-            predictions = dict()
-            for p in pred_types_score[0]:
-                predictions[p[0]] = p[1]
-            print(predictions)
-            print([ lines[s[0].item()] for s in predictions.items() ])
-                
-        # tokenizer = RobertaTokenizerFast.from_pretrained("microsoft/codebert-base", add_prefix_space=True)
-        # print([ c for c, v in enumerate(tokenized_hf['test']['m_labels'][0]) if v == 50264 ])
-        # print(list(zip([ tokenizer.decode(s) for s in tokenized_hf['test']['input_ids'][0] ], tokenized_hf['test']['m_labels'][0])))
-        # print([ s[0] ] for s in pred_types_score[0] )
-        # print([ tokenizer.decode(s[0]) for s in pred_types_score[0] ] )
-        # print(pred_types_embed[0])
-        # print(pred_types_score[0])
-        # preds = torch.tensor(pred_types_score)
-        preds = torch.tensor([ [ p[0] for p in prediction ] for prediction in pred_types_score ])
-        # print(preds)
-        target = torch.tensor(tokenized_hf['test']['masks'])
-        # print(target)
-        
-        print("EXACT MATCH ACCURACY:")
-        
-        true_pos = 0
-        count = -1
-        mrr = 0
-        for prediction in preds:
-            count += 1
-            rank_i = 0
-            for i, p in enumerate(prediction):
-                if p == target[count]:
-                    # print((prediction, target[count]))
-                    if rank_i == 0:
-                        rank_i = i + 1
+        for n in eval_numbers:
+            custom_model = torch.load(args.output_dir + "/model_intermediary" + str(n) + ".pth")
+            custom_model.eval()
+            mapped_types_test = map_type(custom_model, torch.tensor(tokenized_hf['test']['input_ids'][:10000]), torch.tensor(tokenized_hf['test']['m_labels'][:10000]))
+            # print(mapped_types_test)
+            pred_types_embed, pred_types_score = predict_type(mapped_types_test, computed_mapped_labels_train, space, KNN_SEARCH_SIZE)
+            # print(pred_types_embed)
+            
+            with open("50k_types/vocab_50000.txt") as f:
+                lines = dict(enumerate(f.readlines()))
+                # print([ s for s in set(pred_types_score[0]) ])
+                # print([ s[0].item() for s in pred_types_score[0] ])
+                predictions = dict()
+                for p in pred_types_score[0]:
+                    predictions[p[0]] = p[1]
+                print(predictions)
+                print([ lines[s[0].item()] for s in predictions.items() ])
+                    
+            # tokenizer = RobertaTokenizerFast.from_pretrained("microsoft/codebert-base", add_prefix_space=True)
+            # print([ c for c, v in enumerate(tokenized_hf['test']['m_labels'][0]) if v == 50264 ])
+            # print(list(zip([ tokenizer.decode(s) for s in tokenized_hf['test']['input_ids'][0] ], tokenized_hf['test']['m_labels'][0])))
+            # print([ s[0] ] for s in pred_types_score[0] )
+            # print([ tokenizer.decode(s[0]) for s in pred_types_score[0] ] )
+            # print(pred_types_embed[0])
+            # print(pred_types_score[0])
+            # preds = torch.tensor(pred_types_score)
+            preds = torch.tensor([ [ p[0] for p in prediction ] for prediction in pred_types_score ])
+            # print(preds)
+            target = torch.tensor(tokenized_hf['test']['masks'])
+            # print(target)
+            
+            print("EXACT MATCH ACCURACY:")
+            
+            true_pos = 0
+            count = -1
+            mrr = 0
+            for prediction in preds:
+                count += 1
+                rank_i = 0
+                for i, p in enumerate(prediction):
+                    if p == target[count]:
+                        # print((prediction, target[count]))
+                        if rank_i == 0:
+                            rank_i = i + 1
+                        true_pos += 1
+                        break
+                if rank_i != 0:
+                    mrr += 1 / rank_i
+            mrr = mrr / count
+            accuracy_8 = true_pos / count
+            print("TOP 8: " + str(accuracy_8))
+            print("MRR@8: " + str(mrr))
+            
+            
+            true_pos = 0
+            top_1 = []
+            count = -1
+            for prediction in preds:
+                count += 1
+                top_1.append(prediction[0].item())
+                if prediction[0] == target[count]:
                     true_pos += 1
-                    break
-            if rank_i != 0:
-                mrr += 1 / rank_i
-        mrr = mrr / count
-        accuracy = true_pos / count
-        print("TOP 8: " + str(accuracy))
-        print("MRR@8: " + str(mrr))
+            accuracy = true_pos / count
+            print("TOP 1: " + str(accuracy))
         
         
-        true_pos = 0
-        top_1 = []
-        count = -1
-        for prediction in preds:
-            count += 1
-            top_1.append(prediction[0].item())
-            if prediction[0] == target[count]:
-                true_pos += 1
-        accuracy = true_pos / count
-        print("TOP 1: " + str(accuracy))
+            accuracies.append((accuracy_8, mrr, accuracy))
         
-        
+        print(list(zip(eval_numbers, accuracies)))
         # print(tokenized_hf['test']['masks'])
         # print(top_1)
         # scores = calculate_scores(tokenized_hf['test']['masks'], top_1)
