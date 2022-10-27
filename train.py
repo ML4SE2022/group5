@@ -64,28 +64,16 @@ def main():
 
 def train(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print('Using device:', device)
-    print(torch.cuda.device(0))
-    print(torch.cuda.get_device_name(0))
 
     # Uncomment if you want to download the full dataset from hugging face
     #dataset = load_dataset ( ' kevinjesse /ManyTypes4TypeScript ')
 
     #load the small selected local dataset using the py script 
     dataset = load_dataset('ManyTypes4TypeScript.py', ignore_verifications=True)
-    
-    print(len(dataset['train']))
-    print("Dataset loaded")
 
     model = RobertaModel.from_pretrained("microsoft/codebert-base")
 
     tokenized_hf = dataset.map(tokenize_and_align_labels, batched=True, batch_size=args.train_batch_size, remove_columns=['id', 'tokens', 'labels'])
-
-
-    print(len(tokenized_hf['train']))
-    print("Finished input tokenization")
-    
-    print(args.train_batch_size)
       
     if args.do_train:  
         #TODO: begins
@@ -145,7 +133,6 @@ def train(args):
                 computed_mapped_labels_train = []
                 for label in torch.tensor(tokenized_hf['train']['masks']):
                     computed_mapped_labels_train.append(label)
-            print(space)
             eval_numbers = [40, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
             accuracies = []
         else:
@@ -160,33 +147,20 @@ def train(args):
 
             if not args.evaluate_classification:
                 mapped_types_test = map_type(custom_model, torch.tensor(tokenized_hf['test']['input_ids'][:10000]), torch.tensor(tokenized_hf['test']['m_labels'][:10000]))
-                # print(mapped_types_test)
+
                 pred_types_embed, pred_types_score = predict_type(mapped_types_test, computed_mapped_labels_train, space, KNN_SEARCH_SIZE)
-                # print(pred_types_embed)
+
                 
                 with open("50k_types/vocab_50000.txt") as f:
                     lines = dict(enumerate(f.readlines()))
-                    # print([ s for s in set(pred_types_score[0]) ])
-                    # print([ s[0].item() for s in pred_types_score[0] ])
                     predictions = dict()
                     for p in pred_types_score[0]:
                         predictions[p[0]] = p[1]
-                    print(predictions)
-                    print([ lines[s[0].item()] for s in predictions.items() ])
-                        
-                # tokenizer = RobertaTokenizerFast.from_pretrained("microsoft/codebert-base", add_prefix_space=True)
-                # print([ c for c, v in enumerate(tokenized_hf['test']['m_labels'][0]) if v == 50264 ])
-                # print(list(zip([ tokenizer.decode(s) for s in tokenized_hf['test']['input_ids'][0] ], tokenized_hf['test']['m_labels'][0])))
-                # print([ s[0] ] for s in pred_types_score[0] )
-                # print([ tokenizer.decode(s[0]) for s in pred_types_score[0] ] )
-                # print(pred_types_embed[0])
-                # print(pred_types_score[0])
-                # preds = torch.tensor(pred_types_score)
+
                 preds = torch.tensor([ [ p[0] for p in prediction ] for prediction in pred_types_score ])
             else:
                 preds = [classification_prediction(custom_model, torch.tensor(tokenized_hf['test']['input_ids'][i]), torch.tensor(tokenized_hf['test']['m_labels'][i])) for i in range(10000)]            # print(preds)
             target = torch.tensor(tokenized_hf['test']['masks'])
-            # print(target)
             
             print("EXACT MATCH ACCURACY:")
             
@@ -198,7 +172,6 @@ def train(args):
                 rank_i = 0
                 for i, p in enumerate(prediction):
                     if p == target[count]:
-                        # print((prediction, target[count]))
                         if rank_i == 0:
                             rank_i = i + 1
                         true_pos += 1
@@ -207,8 +180,6 @@ def train(args):
                     mrr += 1 / rank_i
             mrr = mrr / count
             accuracy_8 = true_pos / count
-            print("TOP 8: " + str(accuracy_8))
-            print("MRR@8: " + str(mrr))
             
             
             true_pos = 0
@@ -220,28 +191,9 @@ def train(args):
                 if prediction[0] == target[count]:
                     true_pos += 1
             accuracy = true_pos / count
-            print("TOP 1: " + str(accuracy))
         
         
             accuracies.append((accuracy_8, mrr, accuracy))
-        
-        print(list(zip(eval_numbers, accuracies)))
-        # print(tokenized_hf['test']['masks'])
-        # print(top_1)
-        # scores = calculate_scores(tokenized_hf['test']['masks'], top_1)
-        # print(scores)
-        
-        # accuracy = torchmetrics.functional.classification.multiclass_accuracy(preds, target, num_classes=8)
-        # print(accuracy)
-
-# def calculate_scores(answers, predictions):
-#     Acc = []
-#     for key in answers:
-#         Acc.append(answers[key] == predictions[key])
-
-#     scores = {}
-#     scores['Acc'] = np.mean(Acc)
-#     return scores
 
 if __name__ == "__main__":
     main()

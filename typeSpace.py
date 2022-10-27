@@ -42,9 +42,6 @@ def create_type_space(custom_model, inputs, m_labels, labels):
         annoy_index = create_knn_index(annoy_idx, computed_mapped_batches_train, None, computed_mapped_batches_train[0].shape[0], count)
         annoy_idx.build(KNN_TREE_SIZE)
 
-        # Create the type space
-        # print(computed_mapped_labels_train)
-        # annoy_index = create_knn_index(computed_mapped_batches_train, None, computed_mapped_batches_train[0].shape[0])
     return annoy_index, computed_mapped_labels_train
 
 def create_knn_index(annoy_idx: AnnoyIndex, train_types_embed: np.array, valid_types_embed: np.array, type_embed_dim:int, count: int) -> AnnoyIndex:

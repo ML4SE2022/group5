@@ -21,12 +21,6 @@ def tokenize_and_align_labels(examples):
     #fast tokenizer for roberta - please stick to the fast one or expect bugs and slowdown
     tokenizer = RobertaTokenizerFast.from_pretrained("microsoft/codebert-base", add_prefix_space=True)
 
-    # print(len(tokenizer.get_vocab()))
-    # # for examples in tqdm(dataset['train']):
-    # for token in tqdm(examples['tokens']):
-    #     tokenizer.add_tokens(token)
-    # print(len(tokenizer.get_vocab()))
-
     window_size = WINDOW - 2
     # TODO: fix tokenization parsing issue
     tokenized_inputs = tokenizer(examples['tokens'], is_split_into_words=True, truncation=True)
