@@ -194,6 +194,7 @@ def train(args):
         
         
             accuracies.append((accuracy_8, mrr, accuracy))
+        print(accuracies)
 
 if __name__ == "__main__":
     main()
