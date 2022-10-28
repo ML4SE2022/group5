@@ -12,6 +12,10 @@ from tqdm import tqdm
 
 from typeSpace import create_type_space, map_type, predict_type, DISTANCE_METRIC
 
+# TODO: parameterize
+# Same for window size
+
+# TODO: add instructions for pulling and integrating data set and model
 KNN_SEARCH_SIZE = 10
 INTERVAL = 1000
 
@@ -65,10 +69,12 @@ def main():
 def train(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+    # TODO: parameterize dataset loading
     # Uncomment if you want to download the full dataset from hugging face
-    dataset = load_dataset('kevinjesse /ManyTypes4TypeScript')
+    dataset = load_dataset('kevinjesse/ManyTypes4TypeScript')
 
-    #load the small selected local dataset using the py script 
+    #load the small selected local dataset using the py script
+    # TODO: fix the GitHub dataset
     # dataset = load_dataset('ManyTypes4TypeScript.py', ignore_verifications=True)
 
     model = RobertaModel.from_pretrained("microsoft/codebert-base")
@@ -88,6 +94,7 @@ def train(args):
 
         count = 0
 
+        # TODO: re-add support for the classification model
         for epoch in tqdm(range(epochs), desc="Epochs"):
             custom_model.train()
             for step in tqdm(range(len(dataset)), desc="Steps"):
@@ -116,6 +123,7 @@ def train(args):
         if args.output_dir is not None:
             torch.save(custom_model, args.output_dir + "/model.pth")
     
+    # TODO: parameterize
     LAST_MODEL = "/model_intermediary40.pth"
     LAST_CLASS_MODEL = "/model_intermediary_classification9.pth"
     

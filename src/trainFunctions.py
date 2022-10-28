@@ -8,7 +8,7 @@ WINDOW = 128
 def classification_prediction(model, inp, labels, k = 8):
     model_output = model(torch.cat((inp, labels), 0))
     probs = torch.nn.Softmax(model_output).dim
-    _, indices = torch.topk(probs, 8)
+    _, indices = torch.topk(probs, k)
 
     return indices.tolist()
     
