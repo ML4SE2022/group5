@@ -28,11 +28,10 @@ _DESCRIPTION = """\
 A type inference dataset. 
 """
 
-_URL = "50k_types/"
-# _TRAINING_FILE0 = "train0.jsonl"
-# _TRAINING_FILE1 = "train1.jsonl"
-# _TRAINING_FILE2 = "train2.jsonl"
-_TRAINING_FILE4 = "train4.jsonl"
+_URL = "dataset/"
+_TRAINING_FILE0 = "train0.jsonl"
+_TRAINING_FILE1 = "train1.jsonl"
+_TRAINING_FILE2 = "train2.jsonl"
 _DEV_FILE = "valid1.jsonl"
 _TEST_FILE = "test1.jsonl"
 _VOCAB_FILE = "vocab_50000.txt"

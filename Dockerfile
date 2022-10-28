@@ -4,7 +4,6 @@ COPY requirements.txt .
 
 RUN pip install -r requirements.txt
 
-COPY 50k_types/ 50k_types/
 COPY dataset/ dataset/
 COPY type-model/ type-model/
 COPY src/ .
