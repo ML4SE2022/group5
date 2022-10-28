@@ -28,13 +28,13 @@ _DESCRIPTION = """\
 A type inference dataset. 
 """
 
-_URL = "full_preprocessed_dataset/dataset/"
-_TRAINING_FILE0 = "train0.jsonl"
-_TRAINING_FILE1 = "train1.jsonl"
-_TRAINING_FILE2 = "train2.jsonl"
-# _TRAINING_FILE4 = "train4.jsonl"
-_DEV_FILE = "valid.jsonl"
-_TEST_FILE = "test.jsonl"
+_URL = "50k_types/"
+# _TRAINING_FILE0 = "train0.jsonl"
+# _TRAINING_FILE1 = "train1.jsonl"
+# _TRAINING_FILE2 = "train2.jsonl"
+_TRAINING_FILE4 = "train4.jsonl"
+_DEV_FILE = "valid1.jsonl"
+_TEST_FILE = "test1.jsonl"
 _VOCAB_FILE = "vocab_50000.txt"
 _HOMEPAGE = "https://huggingface.co/datasets/kevinjesse/ManyTypes4TypeScript"
 _VERSION = datasets.Version("1.0.0")
@@ -89,18 +89,14 @@ class ManyTypes4TypeScript(datasets.GeneratorBasedBuilder):
     def _split_generators(self, dl_manager):
         """Returns SplitGenerators."""
         urls_to_download = {
-            "train0": f"{_URL}{_TRAINING_FILE0}",
-            "train1": f"{_URL}{_TRAINING_FILE1}",
-            "train2": f"{_URL}{_TRAINING_FILE2}",
+            "train": f"{_URL}{_TRAINING_FILE4}",
             "dev": f"{_URL}{_DEV_FILE}",
             "test": f"{_URL}{_TEST_FILE}",
         }
         downloaded_files = dl_manager.download_and_extract(urls_to_download)
         
         return [
-            datasets.SplitGenerator(name=datasets.Split.TRAIN, gen_kwargs={"filepaths": [downloaded_files["train0"],
-                                                                                         downloaded_files["train1"],
-                                                                                         downloaded_files["train2"]]}), 
+            datasets.SplitGenerator(name=datasets.Split.TRAIN, gen_kwargs={"filepaths": [downloaded_files["train"]]}), 
             datasets.SplitGenerator(name=datasets.Split.VALIDATION, gen_kwargs={"filepaths": [downloaded_files["dev"]]}),
             datasets.SplitGenerator(name=datasets.Split.TEST, gen_kwargs={"filepaths": [downloaded_files["test"],]}),
         ]
