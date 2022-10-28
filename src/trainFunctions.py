@@ -116,6 +116,9 @@ class TripletDataset(torch.utils.data.Dataset):
 
         self.get_item_func = self.get_item_train if self.train_mode else self.get_item_test
 
+    def get_single_item(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        return (self.data[index], self.m_labels[index])
+
     def get_item_train(self, index: int) -> Tuple[Tuple[torch.Tensor, torch.Tensor],
                                          Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]]:
         """

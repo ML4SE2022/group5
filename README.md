@@ -2,7 +2,7 @@
 
 ### Prepare the dataset
 
-Due to size limitations, we do not include the dataset in this repository. To obtain the dataset and preprocess it:
+This project uses the `ManyTypes4TypeScript` dataset. For further details, we recommend visitng the [CodeXGLUE](https://github.com/microsoft/CodeXGLUE/tree/main/Code-Code/TypePrediction-TypeScript) repository, the [Zenodo record](https://zenodo.org/record/6387001), or the consulting authors' [MSR '22 publication](https://www.kevinrjesse.com/pdfs/ManyTypes4TypeScript.pdf). Due to size limitations, we do not include the dataset in this repository. To obtain the dataset and preprocess it:
 
 First, enter the `dataset` directory:
 
@@ -31,6 +31,12 @@ python preprocess_dataset.py -v <vocab-size>
 
 Substitute `<vocab-size>` by the desired type vocabulary size. For reproduction purposes, use `50000`. Alternatively, the `ManyTypes4TypeScript` dataset can be used directly through python's `datasets` library. You can toggle this by using the `--use_local_dataset True` command line argument in the Docker container below.
 
+### Fine-tuned models
+
+The model trained to the specification described in our paper, together with its corresponding type space, and the fine-tuned classification baseline are all available on [Google Drive](https://drive.google.com/drive/folders/1-9SD27j9PFIpHO71G4Zduc-1CgCXuVqR).
+
+To verify our fine-tuned models, download the corresponding model (either DSL or baseline) and its corresponding type space (if using the DSL approach) and place them in the `/models` directory. To specify a model to validate, use the `--use_model <model_name>` and `--use_typespace <typespace name>` command line arguments.
+
 ### Run Docker
 
 ```
@@ -45,13 +51,13 @@ In case GPUs are not recognized by the docker container, make sure `nvidia-conta
 
 1. Train `TypeSpaceBERT` from scratch on the full data set, using the same parameters as in the paper: `docker run --gpus all typespacebert --do_train True --custom_model_d 8 --use_full_dataset True`
 
-2. Train our classification baseline from scratch on the full data set, using the same parameters as in the paper: `docker run --gpus all typespacebert --do_train True --use_classifier True --window_size 8 --use_full_dataset True`
+2. Train our classification baseline from scratch on the full data set, using the same parameters as in the paper: `docker run --gpus all typespacebert --do_train True --use_classifier True --window_size 8 --use_full_dataset True --use_model typespacebertmodel.pth --use_typespace typespacebert-type_space.ann`
 
-3. Evaluate our provided `TypeSpaceBERT` on the full test set using the same parameters as in the paper: `docker run --gpus all typespacebert --do_eval True --window_size 8 --use_full_dataset True`
+3. Evaluate our provided `TypeSpaceBERT` on the full test set using the same parameters as in the paper: `docker run --gpus all typespacebert --do_eval True --window_size 8 --use_full_dataset True --use_classifier True --use_model baseline_model.pth`
 
 4. Evaluate our provided basesline model on the full test set using the same parameters as in the paper: `docker run --gpus all typespacebert --do_eval True --window_size 8 --use_full_dataset True`
 
-5. If for any of the above commands, you would like to use our provided subset of data instead of the entirety of of the `ManyTypes4TypeScript` dataset, `--use_full_dataset` should simply be set to false.
+5. If for any of the above commands, you would like to a local copy of the dataset instead of the entirety of of the `ManyTypes4TypeScript` data, `--use_full_dataset` should simply be set to `False`.
 
 #### Expected results
 
@@ -87,24 +93,21 @@ pip install -r requirements.txt
  ┗ 📜type4py_discussion_notes.md
 ```
 
-### Dataset
-
-This project uses the `ManyTypes4TypeScript` dataset. For further details, we recommend visitng the [CodeXGLUE](https://github.com/microsoft/CodeXGLUE/tree/main/Code-Code/TypePrediction-TypeScript) repository, the [Zenodo record](https://zenodo.org/record/6387001), or the consulting authors' [MSR '22 publication](https://www.kevinrjesse.com/pdfs/ManyTypes4TypeScript.pdf).
-
 
 We provide a small subset of the data as a means of locally veryfing the functionality of our tool. This is the default option when running the container. To toggle to the full data set, consult the `arguments` section of this document.
 
-### Fine-tuned models
 
-The model trained to the specification described in our paper, together with its corresponding type space, and the fine-tuned classification baseline are all available on [Google Drive](https://drive.google.com/drive/folders/1-9SD27j9PFIpHO71G4Zduc-1CgCXuVqR).
 
 ### Arguments
 
 ```
---do_train (Bool). Defaults to False. Whether to train the model.
---do_eval (Bool). Defaults to False. Whether to run evaluation on the test set.
---do_valid (Bool). Defaults to False. Whether to run the evaluation on the validaiton set.
---use_classifier (Bool). Defaults to False. Whether to use the classification-based baseline model. When set to false, the DSL model will be considered instead.
+--do_train (bool). Defaults to False. Whether to train the model.
+--do_eval (bool). Defaults to False. Whether to run evaluation on the test set.
+--do_valid (bool). Defaults to False. Whether to run the evaluation on the validaiton set.
+--use_classifier (bool). Defaults to False. Whether to use the classification-based baseline model. When set to false, the DSL model will be considered instead.
+
+--use_model (string). Defaults to "". Indicates which model (specifically in the /models directory) to use. This must be specified when using validation.
+--use_typespace (string). Defaults to "". Indicates which typespace (specifically in the /models directory) to use. This can be specified when using validation. If no typespace is given, one will be built from scratch, which may take very long.
 
 --output_dir (string). Defaults to "type-model". The output directory where the model predictions and checkpoints will be written.
 
