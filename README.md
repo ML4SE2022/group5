@@ -72,6 +72,10 @@ We expect that the results after 41 checkpoints (41000 training iterations) on t
 pip install -r requirements.txt
 ```
 
+### Predictions
+
+Currently, single instance predictions on the model is not fully implemented due to time constraints and complexity with respect to the data format. This feature is expected to be implemented in the upcoming week.
+
 ### File structure and contents
 
 ```
