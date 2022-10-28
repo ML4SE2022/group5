@@ -3,17 +3,17 @@ from typing import Tuple
 import torch
 from transformers import RobertaTokenizerFast
 
-WINDOW = 128
+#WINDOW = 128
 
 def classification_prediction(model, inp, labels, k = 8):
     model_output = model(torch.cat((inp, labels), 0))
     probs = torch.nn.Softmax(model_output).dim
-    _, indices = torch.topk(probs, 8)
+    _, indices = torch.topk(probs, k)
 
     return indices.tolist()
     
 
-def tokenize_and_align_labels(examples):
+def tokenize_and_align_labels(examples, window):
     def divide_chunks(l1, l2, n):
         for i in range(0, len(l1), n):
             yield {'input_ids': [0] + l1[i:i + n] + [2], 'labels': [-100] + l2[i:i + n] + [-100]}
@@ -21,7 +21,7 @@ def tokenize_and_align_labels(examples):
     #fast tokenizer for roberta - please stick to the fast one or expect bugs and slowdown
     tokenizer = RobertaTokenizerFast.from_pretrained("microsoft/codebert-base", add_prefix_space=True)
 
-    window_size = WINDOW - 2
+    window_size = window - 2
     # TODO: fix tokenization parsing issue
     tokenized_inputs = tokenizer(examples['tokens'], is_split_into_words=True, truncation=True)
     inputs_ = {'input_ids': [], 'labels': []}
@@ -50,7 +50,7 @@ def tokenize_and_align_labels(examples):
     inputs_new = {'input_ids': [], 'm_labels': [], "masks": []}
 
     for i in range(len(inputs_['labels'])):
-        if len(inputs_['input_ids'][i]) != WINDOW:
+        if len(inputs_['input_ids'][i]) != window:
             continue    
         for j in range(len(inputs_['labels'][i])):
             if inputs_['labels'][i][j]==-100:
@@ -64,7 +64,7 @@ def tokenize_and_align_labels(examples):
 
 
 class CustomModel(torch.nn.Module):
-    def __init__(self, model, d, codebert_output_dim = 768 * WINDOW, input_dim = WINDOW): # 50265 + sep + 512 (labels) = 50778
+    def __init__(self, model, d, codebert_output_dim, input_dim): # 50265 + sep + 512 (labels) = 50778
         super(CustomModel, self).__init__() 
         self.d = d
         self.model = model
@@ -75,7 +75,7 @@ class CustomModel(torch.nn.Module):
     
     def forward(self, input_ids=None, attention_mask=None):
         
-        assert input_ids.shape[0] == WINDOW * 2
+        assert input_ids.shape[0] == self.input_dim * 2
         
         tokens, labels = torch.split(input_ids, self.input_dim)
         
@@ -115,6 +115,9 @@ class TripletDataset(torch.utils.data.Dataset):
         self.train_mode = train_mode
 
         self.get_item_func = self.get_item_train if self.train_mode else self.get_item_test
+
+    def get_single_item(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        return (self.data[index], self.m_labels[index])
 
     def get_item_train(self, index: int) -> Tuple[Tuple[torch.Tensor, torch.Tensor],
                                          Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]]:
