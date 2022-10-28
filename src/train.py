@@ -63,6 +63,8 @@ def main():
                         help="The TypeSpaceBERT model checkpoint to be used for evaluation")
     parser.add_argument("--last_class_model", default="/model_intermediary_classification9.pth", type=str,
                         help="The TypeSpaceBERT model checkpoint to be used for evaluation")
+    parser.add_argument("--local_dataset", default=True, type=bool,
+                        help="True, if you want to run with the local dataset")   
 
 
     args = parser.parse_args()
@@ -76,14 +78,14 @@ def main():
 def train(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # TODO: parameterize dataset loading
-    # Uncomment if you want to download the full dataset from hugging face
-    #dataset = load_dataset('kevinjesse/ManyTypes4TypeScript')
+    if args.local_dataset:
+        dataset = load_dataset('ManyTypes4TypeScript.py', ignore_verifications=True)
+    else:
+        dataset = load_dataset('kevinjesse/ManyTypes4TypeScript')
 
     #load the small selected local dataset using the py script
     # TODO: fix the GitHub dataset
-    dataset = load_dataset('ManyTypes4TypeScript.py', ignore_verifications=True)
-
+    
     model = RobertaModel.from_pretrained("microsoft/codebert-base")
 
     WINDOW = args.window_size
