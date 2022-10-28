@@ -2,6 +2,7 @@ from annoy import AnnoyIndex
 import torch
 import argparse
 import os
+import ast
 import numpy as np
 import torchmetrics
 
@@ -15,6 +16,17 @@ from typeSpace import create_type_space, map_type, predict_type, DISTANCE_METRIC
 KNN_SEARCH_SIZE = 10
 INTERVAL = 1000
 
+class PredictionAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        try:
+            prediction = { 'tokens': ast.literal_eval(values[0]), 'labels': ast.literal_eval(values[1].replace("null", '"null"'))}
+            if namespace.do_predict:
+                namespace.do_predict.append(prediction)
+            else:
+                namespace.do_predict=[prediction]
+        except ValueError:
+            parser.error("Problem with prediction: %s or %s is not a list" % (values[0], values[1]))
+        
 def main():
     parser = argparse.ArgumentParser()
 
@@ -29,6 +41,10 @@ def main():
                         help="Whether to run eval on the test set.")
     parser.add_argument("--do_valid", default=False, type=bool,
                         help="Whether to run eval on the dev set.")
+    parser.add_argument("--do_predict", action=PredictionAction, nargs=2,
+                        help="Whether to run a prediction on an example.")
+    parser.add_argument("--test", default=False, type=bool,
+                        help="test")
 
     parser.add_argument("--train_batch_size", default=1000, type=int,
                         help="Batch size per GPU/CPU for training.")
@@ -59,6 +75,8 @@ def main():
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
 
+    print(args.do_predict)
+
     train(args)
 
 
@@ -69,7 +87,7 @@ def train(args):
     #dataset = load_dataset ( ' kevinjesse /ManyTypes4TypeScript ')
 
     #load the small selected local dataset using the py script 
-    dataset = load_dataset('ManyTypes4TypeScript.py', ignore_verifications=True)
+    dataset = load_dataset('src/ManyTypes4TypeScript.py', ignore_verifications=True)
 
     model = RobertaModel.from_pretrained("microsoft/codebert-base")
 
@@ -150,13 +168,6 @@ def train(args):
 
                 pred_types_embed, pred_types_score = predict_type(mapped_types_test, computed_mapped_labels_train, space, KNN_SEARCH_SIZE)
 
-                
-                with open("50k_types/vocab_50000.txt") as f:
-                    lines = dict(enumerate(f.readlines()))
-                    predictions = dict()
-                    for p in pred_types_score[0]:
-                        predictions[p[0]] = p[1]
-
                 preds = torch.tensor([ [ p[0] for p in prediction ] for prediction in pred_types_score ])
             else:
                 preds = [classification_prediction(custom_model, torch.tensor(tokenized_hf['test']['input_ids'][i]), torch.tensor(tokenized_hf['test']['m_labels'][i])) for i in range(10000)]            # print(preds)
@@ -195,6 +206,31 @@ def train(args):
         
             accuracies.append((accuracy_8, mrr, accuracy))
         print(accuracies)
+    
+    if args.do_predict:
+        custom_model = torch.load(args.output_dir + LAST_MODEL) 
+        custom_model.eval()
+        space = AnnoyIndex(8, DISTANCE_METRIC)
+        space.load(args.output_dir + "/space_intermediary191.ann")
+        computed_mapped_labels_train = []
+        for label in torch.tensor(tokenized_hf['train']['masks']):
+            computed_mapped_labels_train.append(label)
+
+        dataset = args.do_predict
+        tokenized_pred = dataset.map(tokenize_and_align_labels, batched=True, batch_size=args.train_batch_size, remove_columns=['id', 'tokens', 'labels'])
+        print(tokenized_pred)
+        
+        mapped_types_test = map_type(custom_model, torch.tensor(tokenized_pred['train']['input_ids']), torch.tensor(tokenized_pred['train']['m_labels']))
+
+        pred_types_embed, pred_types_score = predict_type(mapped_types_test, computed_mapped_labels_train, space, KNN_SEARCH_SIZE)
+
+        with open("50k_types/vocab_50000.txt") as f:
+            lines = dict(enumerate(f.readlines()))
+            predictions = dict()
+            for p in pred_types_score[0]:
+                predictions[lines[p[0]]] = p[1]
+
+        print(predictions)
 
 if __name__ == "__main__":
     main()
