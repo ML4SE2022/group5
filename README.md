@@ -1,5 +1,36 @@
 # Group5
 
+### Prepare the dataset
+
+Due to size limitations, we do not include the dataset in this repository. To obtain the dataset and preprocess it:
+
+First, enter the `dataset` directory:
+
+```
+cd dataset
+```
+
+Second, pull the Zenodo record of the dataset:
+
+```
+wget https://zenodo.org/record/6387001/files/ManyTypes4TypeScript.tar.gz?download=1 -O ManyTypes4TypeScript.tar.gz
+```
+
+Unzip the downloaded archive:
+
+```
+tar -xvzf ManyTypes4TypeScript.tar.gz
+```
+
+Finally, install the required dependencies and preprocess the data into the appropriate format using the `preprocess_dataset` python script:
+
+```
+pip install requirements.txt
+python preprocess_dataset.py -v <vocab-size> 
+```
+
+Substitute `<vocab-size>` by the desired type vocabulary size. For reproduction purposes, use `50000`. Alternatively, the `ManyTypes4TypeScript` dataset can be used directly through python's `datasets` library. You can toggle this by using the `--use_local_dataset True` command line argument in the Docker container below.
+
 ### Run Docker
 
 ```
@@ -19,6 +50,12 @@ In case GPUs are not recognized by the docker container, make sure `nvidia-conta
 3. Evaluate our provided `TypeSpaceBERT` on the full test set using the same parameters as in the paper: `docker run --gpus all typespacebert --do_eval True --window_size 8 --use_full_dataset True`
 
 4. Evaluate our provided basesline model on the full test set using the same parameters as in the paper: `docker run --gpus all typespacebert --do_eval True --window_size 8 --use_full_dataset True`
+
+5. If for any of the above commands, you would like to use our provided subset of data instead of the entirety of of the `ManyTypes4TypeScript` dataset, `--use_full_dataset` should simply be set to false.
+
+#### Expected results
+
+We expect that the results after 41 checkpoints (41000 training iterations) on the full data set, and 191 checkpoints (191000 iterations) of building the type space on the train set
 
 ### Run Manually
 
@@ -49,8 +86,6 @@ pip install -r requirements.txt
  ┣ 📜requirements.txt
  ┗ 📜type4py_discussion_notes.md
 ```
-
-### Replication pipeline
 
 ### Dataset
 
