@@ -49,13 +49,17 @@ docker run --gpus all typespacebert [arguments]
 
 In case GPUs are not recognized by the docker container, make sure `nvidia-container-toolkit` is installed and the docker daemon is restarted. For a better understanding of the available arguments, consolut the description below. For convenience, we provide several use cases that may be of interest:
 
-1. Train `TypeSpaceBERT` from scratch on the full data set, using the same parameters as in the paper: `docker run --gpus all typespacebert --do_train True --custom_model_d 8 --local_dataset True`
+1. Train `TypeSpaceBERT` from scratch on the full data set, using the same parameters as in the paper:
+   ```docker run --gpus all typespacebert --do_train True --custom_model_d 8 --local_dataset True```
 
-2. Train our classification baseline from scratch on the full data set, using the same parameters as in the paper: `docker run --gpus all typespacebert --do_train True --use_classifier True --window_size 8 --local_dataset True --custom_model_d 50000`
+2. Train our classification baseline from scratch on the full data set, using the same parameters as in the paper:
+   ```docker run --gpus all typespacebert --do_train True --use_classifier True --window_size 8 --local_dataset True --custom_model_d 50000```
 
-3. Evaluate our provided `TypeSpaceBERT` on the full test set using the same parameters as in the paper: `docker run --gpus all typespacebert --do_eval True --window_size 128 --local_dataset True -use_model typespacebertmodel.pth --use_typespace typespacebert-type_space.ann`
+3. Evaluate our provided `TypeSpaceBERT` on the full test set using the same parameters as in the paper:
+   ```docker run --gpus all typespacebert --do_eval True --window_size 128 --local_dataset True --use_model models/typespacebert-model.pth --use_typespace models/typespacebert-type_space.ann```
 
-4. Evaluate our provided basesline model on the full test set using the same parameters as in the paper: `docker run --gpus all typespacebert --do_eval True --window_size 8 --local_dataset True --use_model baseline_model.pth`
+4. Evaluate our provided basesline model on the full test set using the same parameters as in the paper:
+   ```docker run --gpus all typespacebert --do_eval True --window_size 8 --local_dataset True --use_model models/baseline_model.pth```
 
 If for any of the above commands, you would like to use the remote version `ManyTypes4TypeScript` instead of preprocessing the data locally, `--local_dataset` should simply be set to `False`.
 
