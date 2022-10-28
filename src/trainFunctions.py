@@ -2,6 +2,7 @@ from torch.utils.data import TensorDataset
 from typing import Tuple
 import torch
 from transformers import RobertaTokenizerFast
+from datasets import load_dataset
 
 WINDOW = 128
 
@@ -12,6 +13,35 @@ def classification_prediction(model, inp, labels, k = 8):
 
     return indices.tolist()
     
+def tokenize_prediction(example):
+    #fast tokenizer for roberta - please stick to the fast one or expect bugs and slowdown
+    tokenizer = RobertaTokenizerFast.from_pretrained("microsoft/codebert-base", add_prefix_space=True)
+
+    window_size = WINDOW - 2
+
+    # TODO: fix tokenization parsing issue
+    tokenized_inputs = tokenizer(example['tokens'], is_split_into_words=True, truncation=True)
+    inputs_ = {'input_ids': [], 'm_labels': []}
+    lines = dict()
+
+    inputs_['input_ids'] = [ encodings.ids[:window_size] for encodings in tokenized_inputs.encodings ]
+
+    with open("50k_types/vocab_50000.txt") as f:
+        lines = dict(enumerate(f.readlines()))
+
+    for label in example['labels']:
+        keys = lines.keys()
+        values = lines.values()
+        if label == '<MASK>':
+            inputs_['m_labels'].append(tokenizer.mask_token_id)
+        if label in values:
+            inputs_['m_labels'].append(keys[values.index(label)])
+        else:
+            inputs_['m_labels'].append(-100)
+    
+    inputs_['m_labels'] = inputs_['m_labels'][:window_size]
+
+    return inputs_
 
 def tokenize_and_align_labels(examples):
     def divide_chunks(l1, l2, n):

@@ -8,13 +8,13 @@ import torchmetrics
 
 from datasets import load_dataset
 from transformers import RobertaModel, RobertaTokenizerFast
-from trainFunctions import CustomModel, TripletDataset, TripletLoss, classification_prediction, tokenize_and_align_labels
+from trainFunctions import CustomModel, TripletDataset, TripletLoss, classification_prediction, tokenize_and_align_labels, tokenize_prediction
 from tqdm import tqdm
 
 from typeSpace import create_type_space, map_type, predict_type, DISTANCE_METRIC
 
 KNN_SEARCH_SIZE = 10
-INTERVAL = 1000
+INTERVAL = 10
 
 class PredictionAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
@@ -87,7 +87,7 @@ def train(args):
     #dataset = load_dataset ( ' kevinjesse /ManyTypes4TypeScript ')
 
     #load the small selected local dataset using the py script 
-    dataset = load_dataset('src/ManyTypes4TypeScript.py', ignore_verifications=True)
+    dataset = load_dataset('ManyTypes4TypeScript.py', ignore_verifications=True)
 
     model = RobertaModel.from_pretrained("microsoft/codebert-base")
 
@@ -134,7 +134,7 @@ def train(args):
         if args.output_dir is not None:
             torch.save(custom_model, args.output_dir + "/model.pth")
     
-    LAST_MODEL = "/model_intermediary40.pth"
+    LAST_MODEL = "/model_intermediary0.pth"
     LAST_CLASS_MODEL = "/model_intermediary_classification9.pth"
     
     if args.do_eval:
@@ -142,12 +142,12 @@ def train(args):
 
             custom_model = torch.load(args.output_dir + LAST_MODEL) 
             custom_model.eval()
-            if not os.path.isfile(args.output_dir + "/space_intermediary191.ann"):
+            if not os.path.isfile(args.output_dir + "/space_intermediary0.ann"):
                 space, computed_mapped_labels_train = create_type_space(custom_model, torch.tensor(tokenized_hf['train']['input_ids']), torch.tensor(tokenized_hf['train']['m_labels']), torch.tensor(tokenized_hf['train']['masks']))
                 space.save(args.output_dir + '/space.ann')
             else:
                 space = AnnoyIndex(8, DISTANCE_METRIC)
-                space.load(args.output_dir + "/space_intermediary191.ann")
+                space.load(args.output_dir + "/space_intermediary0.ann")
                 computed_mapped_labels_train = []
                 for label in torch.tensor(tokenized_hf['train']['masks']):
                     computed_mapped_labels_train.append(label)
@@ -211,16 +211,16 @@ def train(args):
         custom_model = torch.load(args.output_dir + LAST_MODEL) 
         custom_model.eval()
         space = AnnoyIndex(8, DISTANCE_METRIC)
-        space.load(args.output_dir + "/space_intermediary191.ann")
+        space.load(args.output_dir + "/space_intermediary0.ann")
         computed_mapped_labels_train = []
         for label in torch.tensor(tokenized_hf['train']['masks']):
             computed_mapped_labels_train.append(label)
 
-        dataset = args.do_predict
-        tokenized_pred = dataset.map(tokenize_and_align_labels, batched=True, batch_size=args.train_batch_size, remove_columns=['id', 'tokens', 'labels'])
+
+        tokenized_pred = tokenize_prediction(args.do_predict[0])
         print(tokenized_pred)
         
-        mapped_types_test = map_type(custom_model, torch.tensor(tokenized_pred['train']['input_ids']), torch.tensor(tokenized_pred['train']['m_labels']))
+        mapped_types_test = map_type(custom_model, torch.tensor(tokenized_pred['input_ids']), torch.tensor(tokenized_pred['m_labels']))
 
         pred_types_embed, pred_types_score = predict_type(mapped_types_test, computed_mapped_labels_train, space, KNN_SEARCH_SIZE)
 
