@@ -123,4 +123,11 @@ We provide a small subset of the data as a means of locally veryfing the functio
 --warmup_steps (int). Defaults to 0. Specifies the total number of warmup steps to perform linear warmup on.
 
 --custom_model_d (int). Defaults to 8. Determines the output dimension of the DSL model, if it is used.
+
+--interval (int). Defaults to 1000. Interval for outputting models
+--knn_search_size (int). Defaults to 10. KNN seach size
+--window_size (int). Defaults to 128. Window size used for tokenization              
+--last_model (string). Defaults to "/model_intermediary40.pth". The TypeSpaceBERT model checkpoint to be used for evaluation
+--last_class_model (string). Defaults to "/model_intermediary_classification9.pth". The TypeSpaceBERT model checkpoint to be used for evaluation
+--local_dataset (bool). Defaults to True. True, if you want to run with the local dataset 
 ```

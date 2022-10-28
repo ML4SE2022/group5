@@ -12,12 +12,7 @@ from tqdm import tqdm
 
 from typeSpace import create_type_space, map_type, predict_type, DISTANCE_METRIC
 
-# TODO: parameterize
-# Same for window size
-
 # TODO: add instructions for pulling and integrating data set and model
-KNN_SEARCH_SIZE = 10
-INTERVAL = 1000
 MASKED_TOKEN_ID = 50264
 
 def main():
@@ -63,6 +58,19 @@ def main():
 
     parser.add_argument("--custom_model_d", default=8, type=int,
                         help="Out dimension of the custom model")
+    parser.add_argument("--interval", default=1000, type=int,
+                        help="Interval for outputting models")
+    parser.add_argument("--knn_search_size", default=10, type=int,
+                        help="KNN seach size")
+    parser.add_argument("--window_size", default=128, type=int,
+                        help="Window size used for tokenization")              
+    parser.add_argument("--last_model", default="/model_intermediary40.pth", type=str,
+                        help="The TypeSpaceBERT model checkpoint to be used for evaluation")
+    parser.add_argument("--last_class_model", default="/model_intermediary_classification9.pth", type=str,
+                        help="The TypeSpaceBERT model checkpoint to be used for evaluation")
+    parser.add_argument("--local_dataset", default=True, type=bool,
+                        help="True, if you want to run with the local dataset")   
+
 
     args = parser.parse_args()
 
@@ -75,23 +83,23 @@ def main():
 def train(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # TODO: parameterize dataset loading
-    # Uncomment if you want to download the full dataset from hugging face
-    # dataset = load_dataset('kevinjesse/ManyTypes4TypeScript')
+    if args.local_dataset:
+        dataset = load_dataset('ManyTypes4TypeScript.py', ignore_verifications=True)
+    else:
+        dataset = load_dataset('kevinjesse/ManyTypes4TypeScript')
 
     #load the small selected local dataset using the py script
     # TODO: fix the GitHub dataset
-    dataset = load_dataset('ManyTypes4TypeScript.py', ignore_verifications=True)
-
+    
     model = RobertaModel.from_pretrained("microsoft/codebert-base")
 
-    tokenized_hf = dataset.map(tokenize_and_align_labels, batched=True, batch_size=args.train_batch_size, remove_columns=['id', 'tokens', 'labels'])
+    WINDOW = args.window_size
+    tokenized_hf = dataset.map(tokenize_and_align_labels, batched=True, batch_size=args.train_batch_size, remove_columns=['id', 'tokens', 'labels'], fn_kwargs={"window": WINDOW})
       
-    if args.do_train:
-        #TODO: begins
+    if args.do_train:  
         epochs = args.num_train_epochs
 
-        custom_model = CustomModel(model, args.custom_model_d)
+        custom_model = CustomModel(model, args.custom_model_d, codebert_output_dim = 768 * args.window_size, input_dim = args.window_size)
         labels = torch.tensor(tokenized_hf['train']['masks'])
         dataset = TripletDataset(torch.tensor(tokenized_hf['train']['input_ids']), m_labels=torch.tensor(tokenized_hf['train']['m_labels']), labels=labels, dataset_name="train")
 
@@ -107,7 +115,7 @@ def train(args):
                 mask[step] = False # Making sure that the similar pair is NOT the same as the given index
                 if len(mask.nonzero()) == 0:
                     continue
-                
+                INTERVAL = args.interval
                 if step > 0 and step % INTERVAL == 0:
                     if args.output_dir is not None:
                         torch.save(custom_model, args.output_dir + "/model_intermediary" + ("_classification" if args.use_classifier else "") + str(count) + ".pth")
@@ -132,7 +140,6 @@ def train(args):
                     loss = criterion(t_out, target)             
                 loss.backward()
                 optimizer.step()
-        #TODO: Ends
         if args.output_dir is not None:
             torch.save(custom_model, args.output_dir + f"/model{'_classification' if args.use_classifier else ''}.pth")
     
@@ -162,8 +169,8 @@ def train(args):
 
         if not args.use_classifier:
             mapped_types_test = map_type(custom_model, torch.tensor(tokenized_hf['test']['input_ids'][:10000]), torch.tensor(tokenized_hf['test']['m_labels'][:10000]))
-
-            pred_types_embed, pred_types_score = predict_type(mapped_types_test, computed_mapped_labels_train, space, KNN_SEARCH_SIZE)
+            KNN_SEARCH_SIZE = args.knn_search_size
+            _, pred_types_score = predict_type(mapped_types_test, computed_mapped_labels_train, space, KNN_SEARCH_SIZE)
 
             
             with open("50k_types/vocab_50000.txt") as f:
