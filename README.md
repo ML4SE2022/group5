@@ -57,10 +57,10 @@ In case GPUs are not recognized by the docker container, make sure `nvidia-conta
    ```docker run --gpus all typespacebert --do_train True --use_classifier True --window_size 8 --local_dataset True --custom_model_d 50000```
 
 3. Evaluate our provided `TypeSpaceBERT` on the full test set using the same parameters as in the paper:
-   ```docker run --gpus all typespacebert --do_eval True --window_size 128 --local_dataset True --use_model models/typespacebert-model.pth --use_typespace models/typespacebert-type_space.ann```
+   ```docker run --gpus all typespacebert --do_eval True --window_size 128 --local_dataset True --use_model typespacebert-model.pth --use_typespace typespacebert-type_space.ann```
 
 4. Evaluate our provided basesline model on the full test set using the same parameters as in the paper:
-   ```docker run --gpus all typespacebert --do_eval True --window_size 8 --local_dataset True --use_model models/baseline_model.pth```
+   ```docker run --gpus all typespacebert --do_eval True --window_size 8 --local_dataset True --use_model baseline-model.pth```
 
 If for any of the above commands, you would like to use the remote version `ManyTypes4TypeScript` instead of preprocessing the data locally, `--local_dataset` should simply be set to `False`.
 

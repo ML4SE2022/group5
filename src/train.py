@@ -29,9 +29,9 @@ def main():
     parser.add_argument("--do_valid", default=False, type=bool,
                         help="Whether to run eval on the dev set.")
 
-    parser.add_argument("--use_model", default="", type=str,
+    parser.add_argument("--use_model", default="typespacebert-model.pth", type=str,
                         help="Provide a model to evaluate. The model is assumed to be in the /models directory.")
-    parser.add_argument("--use_typespace", default="", type=str,
+    parser.add_argument("--use_typespace", default="typespacebert-type_space.ann", type=str,
                         help="Provide a type space for evaluation. The type space is assumed to be in the /models directory.")
 
     parser.add_argument("--train_batch_size", default=1000, type=int,
@@ -63,9 +63,9 @@ def main():
                         help="KNN seach size")
     parser.add_argument("--window_size", default=128, type=int,
                         help="Window size used for tokenization")
-    parser.add_argument("--last_model", default="models/typespacebert-model.pth", type=str,
+    parser.add_argument("--last_model", default="typespacebert-model.pth", type=str,
                         help="The TypeSpaceBERT model checkpoint to be used for evaluation")
-    parser.add_argument("--last_class_model", default="/model_intermediary_classification9.pth", type=str,
+    parser.add_argument("--last_class_model", default="baseline-model.pth", type=str,
                         help="The TypeSpaceBERT model checkpoint to be used for evaluation")
     parser.add_argument("--local_dataset", default=True, type=bool,
                         help="True, if you want to run with the local dataset")
@@ -109,6 +109,7 @@ def train(args):
         criterion = torch.jit.script(TripletLoss()) if not args.use_classifier else torch.jit.script(
             torch.nn.CrossEntropyLoss())
 
+        count = 0
         # TODO: re-add support for the classification model
         for epoch in tqdm(range(epochs), desc="Epochs"):
             custom_model.train()
@@ -155,7 +156,7 @@ def train(args):
 
             custom_model = torch.load("models/" + args.use_model)
             custom_model.eval()
-            if not os.path.isfile("models/" + args.use_typesapce):
+            if not os.path.isfile("models/" + args.use_typespace):
                 print(
                     "WARN: type space not provided. To provide a type space, use the --use_typespace command line argument.")
                 space, computed_mapped_labels_train = create_type_space(custom_model, torch.tensor(
@@ -164,7 +165,7 @@ def train(args):
                 space.save(args.output_dir + '/space.ann')
             else:
                 space = AnnoyIndex(8, DISTANCE_METRIC)
-                space.load("models/" + args.use_model)
+                space.load("models/" + args.use_typespace)
                 computed_mapped_labels_train = []
                 for label in torch.tensor(tokenized_hf['train']['masks']):
                     computed_mapped_labels_train.append(label)
@@ -172,8 +173,9 @@ def train(args):
             custom_model = torch.load("models/" + args.use_model)
             custom_model.eval()
 
-        custom_model = torch.load(
-            args.output_dir + "/model_intermediary" + ("_classification" if args.use_classifier else "") + str(9) + ".pth")
+        custom_model_path = "models/" + args.last_class_model if args.use_classifier else "models/" + args.use_model
+
+        custom_model = torch.load(custom_model_path)
         custom_model.eval()
 
         if not args.use_classifier:
