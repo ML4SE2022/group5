@@ -21,7 +21,7 @@ def main():
     ## Required parameters
     parser.add_argument("--output_dir", default="type-model", type=str, required=False,
                         help="The output directory where the model predictions and checkpoints will be written.")
-    parser.add_argument("--evaluate_classification", default=False, type=bool,
+    parser.add_argument("--use_classifier", default=False, type=bool,
                         help="Whether to validate a classificaiton model.")
     parser.add_argument("--do_train", default=False, type=bool,
                         help="Whether to run training.")
@@ -66,10 +66,10 @@ def train(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Uncomment if you want to download the full dataset from hugging face
-    #dataset = load_dataset ( ' kevinjesse /ManyTypes4TypeScript ')
+    dataset = load_dataset('kevinjesse /ManyTypes4TypeScript')
 
     #load the small selected local dataset using the py script 
-    dataset = load_dataset('ManyTypes4TypeScript.py', ignore_verifications=True)
+    # dataset = load_dataset('ManyTypes4TypeScript.py', ignore_verifications=True)
 
     model = RobertaModel.from_pretrained("microsoft/codebert-base")
 
@@ -120,7 +120,7 @@ def train(args):
     LAST_CLASS_MODEL = "/model_intermediary_classification9.pth"
     
     if args.do_eval:
-        if not args.evaluate_classification:
+        if not args.use_classifier:
 
             custom_model = torch.load(args.output_dir + LAST_MODEL) 
             custom_model.eval()
@@ -142,10 +142,10 @@ def train(args):
             accuracies = []
         
         for n in eval_numbers:
-            custom_model = torch.load(args.output_dir + "/model_intermediary" + ("_classification" if args.evaluate_classification else "") + str(n) + ".pth")
+            custom_model = torch.load(args.output_dir + "/model_intermediary" + ("_classification" if args.use_classifier else "") + str(n) + ".pth")
             custom_model.eval()
 
-            if not args.evaluate_classification:
+            if not args.use_classifier:
                 mapped_types_test = map_type(custom_model, torch.tensor(tokenized_hf['test']['input_ids'][:10000]), torch.tensor(tokenized_hf['test']['m_labels'][:10000]))
 
                 pred_types_embed, pred_types_score = predict_type(mapped_types_test, computed_mapped_labels_train, space, KNN_SEARCH_SIZE)
