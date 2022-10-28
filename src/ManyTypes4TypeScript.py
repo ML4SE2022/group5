@@ -88,16 +88,21 @@ class ManyTypes4TypeScript(datasets.GeneratorBasedBuilder):
     def _split_generators(self, dl_manager):
         """Returns SplitGenerators."""
         urls_to_download = {
-            "train": f"{_URL}{_TRAINING_FILE4}",
+            "train0": f"{_URL}{_TRAINING_FILE0}",
+            "train1": f"{_URL}{_TRAINING_FILE1}",
+            "train2": f"{_URL}{_TRAINING_FILE2}",
             "dev": f"{_URL}{_DEV_FILE}",
             "test": f"{_URL}{_TEST_FILE}",
         }
         downloaded_files = dl_manager.download_and_extract(urls_to_download)
-        
+
         return [
-            datasets.SplitGenerator(name=datasets.Split.TRAIN, gen_kwargs={"filepaths": [downloaded_files["train"]]}), 
-            datasets.SplitGenerator(name=datasets.Split.VALIDATION, gen_kwargs={"filepaths": [downloaded_files["dev"]]}),
-            datasets.SplitGenerator(name=datasets.Split.TEST, gen_kwargs={"filepaths": [downloaded_files["test"],]}),
+            datasets.SplitGenerator(name=datasets.Split.TRAIN, gen_kwargs={"filepaths": [downloaded_files["train0"],
+                                                                                         downloaded_files["train1"],
+                                                                                         downloaded_files["train2"]]}),
+            datasets.SplitGenerator(name=datasets.Split.VALIDATION,
+                                    gen_kwargs={"filepaths": [downloaded_files["dev"], ]}),
+            datasets.SplitGenerator(name=datasets.Split.TEST, gen_kwargs={"filepaths": [downloaded_files["test"], ]}),
         ]
 
 
