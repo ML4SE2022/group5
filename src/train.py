@@ -19,7 +19,7 @@ INTERVAL = 10
 class PredictionAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         try:
-            prediction = { 'tokens': ast.literal_eval(values[0]), 'labels': ast.literal_eval(values[1].replace("null", '"null"'))}
+            prediction = { 'tokens': ast.literal_eval(values[0]), 'labels': ast.literal_eval(values[1].replace('"null"', "<TEMP>").replace("null", '"<NULLTYPE>"').replace("<TEMP>", '"null"')) }
             if namespace.do_predict:
                 namespace.do_predict.append(prediction)
             else:
@@ -74,11 +74,6 @@ def main():
 
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
-
-    print(args.do_predict)
-
-    train(args)
-
 
 def train(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -216,9 +211,7 @@ def train(args):
         for label in torch.tensor(tokenized_hf['train']['masks']):
             computed_mapped_labels_train.append(label)
 
-
         tokenized_pred = tokenize_prediction(args.do_predict[0])
-        print(tokenized_pred)
         
         mapped_types_test = map_type(custom_model, torch.tensor(tokenized_pred['input_ids']), torch.tensor(tokenized_pred['m_labels']))
 
@@ -227,10 +220,14 @@ def train(args):
         with open("50k_types/vocab_50000.txt") as f:
             lines = dict(enumerate(f.readlines()))
             predictions = dict()
-            for p in pred_types_score[0]:
-                predictions[lines[p[0]]] = p[1]
+            for windows in pred_types_score:
+                for p in windows:
+                    if lines[p[0].item()].replace("\n", "") in predictions:
+                        predictions[lines[p[0].item()].replace("\n", "")] = max(predictions[lines[p[0].item()].replace("\n", "")], p[1])
+                    else:
+                        predictions[lines[p[0].item()].replace("\n", "")] = p[1]
 
-        print(predictions)
+        print("PREDICTION: {}", predictions)
 
 if __name__ == "__main__":
     main()

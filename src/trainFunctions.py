@@ -13,6 +13,10 @@ def classification_prediction(model, inp, labels, k = 8):
 
     return indices.tolist()
     
+def divide_chunks(l1, l2, n):
+    for i in range(0, len(l1), n):
+        yield {'input_ids': [0] + l1[i:i + n] + [2], 'labels': [-100] + l2[i:i + n] + [-100]}
+
 def tokenize_prediction(example):
     #fast tokenizer for roberta - please stick to the fast one or expect bugs and slowdown
     tokenizer = RobertaTokenizerFast.from_pretrained("microsoft/codebert-base", add_prefix_space=True)
@@ -21,32 +25,48 @@ def tokenize_prediction(example):
 
     # TODO: fix tokenization parsing issue
     tokenized_inputs = tokenizer(example['tokens'], is_split_into_words=True, truncation=True)
+    inputs = {'input_ids': [], 'm_labels': []}
     inputs_ = {'input_ids': [], 'm_labels': []}
     lines = dict()
 
-    inputs_['input_ids'] = [ encodings.ids[:window_size] for encodings in tokenized_inputs.encodings ]
+    # Take first encoding since only one example is given.
+    inputs['input_ids'] = tokenized_inputs.encodings[0].ids
 
     with open("50k_types/vocab_50000.txt") as f:
         lines = dict(enumerate(f.readlines()))
 
-    for label in example['labels']:
-        keys = lines.keys()
-        values = lines.values()
-        if label == '<MASK>':
-            inputs_['m_labels'].append(tokenizer.mask_token_id)
-        if label in values:
-            inputs_['m_labels'].append(keys[values.index(label)])
-        else:
-            inputs_['m_labels'].append(-100)
-    
-    inputs_['m_labels'] = inputs_['m_labels'][:window_size]
+    keys = list(lines.keys())
+    values = lines.values()
+    values = list(map(lambda x: x.replace("\n", ""), values))
 
-    return inputs_
+    for label in example['labels']:
+        if label == '<MASK>':
+            inputs['m_labels'].append(tokenizer.mask_token_id)
+        if label == '<NULLTYPE>':
+            inputs['m_labels'].append(-100)
+        if label in values:
+            inputs['m_labels'].append(keys[values.index(label)])
+        else:
+            inputs['m_labels'].append(-100)
+    
+    inputs['m_labels'] = inputs['m_labels']
+
+    for e in divide_chunks(inputs['input_ids'], inputs['m_labels'], window_size):
+        for k, v in e.items():
+            if k == 'labels':
+                k = 'm_labels'
+            inputs_[k].append(v)
+
+    inputs_new = {'input_ids': [], 'm_labels': []}
+    for i in range(len(inputs_['input_ids'])):
+        if len(inputs_['input_ids'][i]) != WINDOW or len(inputs_['m_labels'][i]) != WINDOW:
+            continue
+        inputs_new['input_ids'].append(inputs_['input_ids'][i])
+        inputs_new['m_labels'].append(inputs_['m_labels'][i])
+
+    return inputs_new
 
 def tokenize_and_align_labels(examples):
-    def divide_chunks(l1, l2, n):
-        for i in range(0, len(l1), n):
-            yield {'input_ids': [0] + l1[i:i + n] + [2], 'labels': [-100] + l2[i:i + n] + [-100]}
 
     #fast tokenizer for roberta - please stick to the fast one or expect bugs and slowdown
     tokenizer = RobertaTokenizerFast.from_pretrained("microsoft/codebert-base", add_prefix_space=True)
