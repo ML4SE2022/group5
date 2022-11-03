@@ -1,19 +1,18 @@
-from annoy import AnnoyIndex
-import torch
 import argparse
-import os
 import ast
+import os
+import torch
+from annoy import AnnoyIndex
 from datasets import load_dataset
 from transformers import RobertaModel
-from trainFunctions import CustomModel, TripletDataset, TripletLoss, classification_prediction, \
-    tokenize_and_align_labels, tokenize_prediction
 from tqdm import tqdm
 
+from trainFunctions import CustomModel, TripletDataset, TripletLoss, classification_prediction, \
+    tokenize_and_align_labels, tokenize_prediction
 from typeSpace import create_type_space, map_type, predict_type, DISTANCE_METRIC
 
 # TODO: add instructions for pulling and integrating data set and model
 MASKED_TOKEN_ID = 50264
-
 
 class PredictionAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
@@ -30,7 +29,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     ## Required parameters
-    parser.add_argument("--output_dir", default="type-model", type=str, required=False,
+    parser.add_argument("--output_dir", default="models", type=str, required=False,
                         help="The output directory where the model predictions and checkpoints will be written.")
     parser.add_argument("--use_classifier", default=False, type=bool,
                         help="Whether to validate a classificaiton model.")
@@ -88,6 +87,8 @@ def main():
 
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
+
+    train(args)
 
 def train(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -248,7 +249,7 @@ def train(args):
 
         pred_types_embed, pred_types_score = predict_type(mapped_types_test, computed_mapped_labels_train, space, KNN_SEARCH_SIZE)
 
-        with open("50k_types/vocab_50000.txt") as f:
+        with open("dataset/vocab_50000.txt") as f:
             lines = dict(enumerate(f.readlines()))
             predictions = dict()
             for windows in pred_types_score:
@@ -258,7 +259,7 @@ def train(args):
                     else:
                         predictions[lines[p[0].item()].replace("\n", "")] = p[1]
 
-        print("PREDICTION: {}", predictions)
+        print("PREDICTION: ", predictions)
 
 if __name__ == "__main__":
     main()

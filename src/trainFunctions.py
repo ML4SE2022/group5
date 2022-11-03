@@ -1,10 +1,7 @@
-from torch.utils.data import TensorDataset
-from typing import Tuple
 import torch
+from typing import Tuple
+from torch.utils.data import TensorDataset
 from transformers import RobertaTokenizerFast
-from datasets import load_dataset
-
-#WINDOW = 128
 
 def classification_prediction(model, inp, labels, k = 8):
     model_output = model(torch.cat((inp, labels), 0))
@@ -32,7 +29,7 @@ def tokenize_prediction(example, window):
     # Take first encoding since only one example is given.
     inputs['input_ids'] = tokenized_inputs.encodings[0].ids
 
-    with open("50k_types/vocab_50000.txt") as f:
+    with open("dataset/vocab_50000.txt") as f:
         lines = dict(enumerate(f.readlines()))
 
     keys = list(lines.keys())
@@ -59,7 +56,7 @@ def tokenize_prediction(example, window):
 
     inputs_new = {'input_ids': [], 'm_labels': []}
     for i in range(len(inputs_['input_ids'])):
-        if len(inputs_['input_ids'][i]) != WINDOW or len(inputs_['m_labels'][i]) != WINDOW:
+        if len(inputs_['input_ids'][i]) != window or len(inputs_['m_labels'][i]) != window:
             continue
         inputs_new['input_ids'].append(inputs_['input_ids'][i])
         inputs_new['m_labels'].append(inputs_['m_labels'][i])
