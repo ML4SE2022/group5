@@ -64,10 +64,6 @@ def tokenize_prediction(example, window):
     return inputs_new
 
 def tokenize_and_align_labels(examples, window):
-    def divide_chunks(l1, l2, n):
-        for i in range(0, len(l1), n):
-            yield {'input_ids': [0] + l1[i:i + n] + [2], 'labels': [-100] + l2[i:i + n] + [-100]}
-
     #fast tokenizer for roberta - please stick to the fast one or expect bugs and slowdown
     tokenizer = RobertaTokenizerFast.from_pretrained("microsoft/codebert-base", add_prefix_space=True)
 
