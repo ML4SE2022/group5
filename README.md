@@ -45,7 +45,7 @@ docker build -t typespacebert .
 ```
 
 ```
-docker run --gpus all typespacebert [arguments]
+docker run -v ${PWD}/type-model:/type-model --gpus all typespacebert [arguments]
 ```
 
 In case GPUs are not recognized by the docker container, make sure `nvidia-container-toolkit` is installed and the docker daemon is restarted. For a better understanding of the available arguments, consolut the description below. For convenience, we provide several use cases that may be of interest:
