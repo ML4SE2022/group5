@@ -1,24 +1,35 @@
-from annoy import AnnoyIndex
-import torch
 import argparse
+import ast
 import os
+import torch
+from annoy import AnnoyIndex
 from datasets import load_dataset
 from transformers import RobertaModel
-from trainFunctions import CustomModel, TripletDataset, TripletLoss, classification_prediction, \
-    tokenize_and_align_labels
 from tqdm import tqdm
 
+from trainFunctions import CustomModel, TripletDataset, TripletLoss, classification_prediction, \
+    tokenize_and_align_labels, tokenize_prediction
 from typeSpace import create_type_space, map_type, predict_type, DISTANCE_METRIC
 
 # TODO: add instructions for pulling and integrating data set and model
 MASKED_TOKEN_ID = 50264
 
-
+class PredictionAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        try:
+            prediction = { 'tokens': ast.literal_eval(values[0]), 'labels': ast.literal_eval(values[1].replace('"null"', "<TEMP>").replace("null", '"<NULLTYPE>"').replace("<TEMP>", '"null"')) }
+            if namespace.do_predict:
+                namespace.do_predict.append(prediction)
+            else:
+                namespace.do_predict=[prediction]
+        except ValueError:
+            parser.error("Problem with prediction: %s or %s is not a list" % (values[0], values[1]))
+        
 def main():
     parser = argparse.ArgumentParser()
 
     ## Required parameters
-    parser.add_argument("--output_dir", default="type-model", type=str, required=False,
+    parser.add_argument("--output_dir", default="models", type=str, required=False,
                         help="The output directory where the model predictions and checkpoints will be written.")
     parser.add_argument("--use_classifier", default=False, type=bool,
                         help="Whether to validate a classificaiton model.")
@@ -28,6 +39,8 @@ def main():
                         help="Whether to run eval on the test set.")
     parser.add_argument("--do_valid", default=False, type=bool,
                         help="Whether to run eval on the dev set.")
+    parser.add_argument("--do_predict", action=PredictionAction, nargs=2,
+                        help="Whether to run a prediction on an example.")
 
     parser.add_argument("--use_model", default="typespacebert-model.pth", type=str,
                         help="Provide a model to evaluate. The model is assumed to be in the /models directory.")
@@ -77,7 +90,6 @@ def main():
 
     train(args)
 
-
 def train(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -90,8 +102,10 @@ def train(args):
     # TODO: fix the GitHub dataset
 
     model = RobertaModel.from_pretrained("microsoft/codebert-base")
+    custom_model_path = "models/" + args.last_class_model if args.use_classifier else "models/" + args.use_model
 
     WINDOW = args.window_size
+    KNN_SEARCH_SIZE = args.knn_search_size
     tokenized_hf = dataset.map(tokenize_and_align_labels, batched=True, batch_size=args.train_batch_size,
                                remove_columns=['id', 'tokens', 'labels'], fn_kwargs={"window": WINDOW})
 
@@ -173,28 +187,18 @@ def train(args):
             custom_model = torch.load("models/" + args.use_model)
             custom_model.eval()
 
-        custom_model_path = "models/" + args.last_class_model if args.use_classifier else "models/" + args.use_model
-
         custom_model = torch.load(custom_model_path)
         custom_model.eval()
 
         if not args.use_classifier:
             mapped_types_test = map_type(custom_model, torch.tensor(tokenized_hf['test']['input_ids'][:10000]),
                                          torch.tensor(tokenized_hf['test']['m_labels'][:10000]))
-            KNN_SEARCH_SIZE = args.knn_search_size
             _, pred_types_score = predict_type(mapped_types_test, computed_mapped_labels_train, space, KNN_SEARCH_SIZE)
-
-            with open("50k_types/vocab_50000.txt") as f:
-                lines = dict(enumerate(f.readlines()))
-                predictions = dict()
-                for p in pred_types_score[0]:
-                    predictions[p[0]] = p[1]
 
             preds = torch.tensor([[p[0] for p in prediction] for prediction in pred_types_score])
         else:
             preds = [classification_prediction(custom_model, torch.tensor(tokenized_hf['test']['input_ids'][i]),
-                                               torch.tensor(tokenized_hf['test']['m_labels'][i])) for i in
-                     range(10000)]  # print(preds)
+                                               torch.tensor(tokenized_hf['test']['m_labels'][i])) for i in range(10000)]
         target = torch.tensor(tokenized_hf['test']['masks'])
 
         print("EXACT MATCH ACCURACY:")
@@ -217,17 +221,45 @@ def train(args):
         accuracy_8 = true_pos / count
 
         true_pos = 0
-        top_1 = []
         count = -1
         for prediction in preds:
             count += 1
-            # top_1.append(prediction[0].item())
             if prediction[0] == target[count]:
                 true_pos += 1
         accuracy = true_pos / count
 
         print((accuracy_8, mrr, accuracy))
 
+    if args.do_predict:
+        custom_model = torch.load(custom_model_path)
+        custom_model.eval()
+
+        if not os.path.isfile("models/" + args.use_typespace):
+            print("WARN: type space not found. To provide a type space, use the --use_typespace command line argument.")
+            return
+        space = AnnoyIndex(8, DISTANCE_METRIC)
+        space.load("models/" + args.use_typespace)
+        computed_mapped_labels_train = []
+        for label in torch.tensor(tokenized_hf['train']['masks']):
+            computed_mapped_labels_train.append(label)
+
+        tokenized_pred = tokenize_prediction(args.do_predict[0], WINDOW)
+        
+        mapped_types_test = map_type(custom_model, torch.tensor(tokenized_pred['input_ids']), torch.tensor(tokenized_pred['m_labels']))
+
+        pred_types_embed, pred_types_score = predict_type(mapped_types_test, computed_mapped_labels_train, space, KNN_SEARCH_SIZE)
+
+        with open("dataset/vocab_50000.txt") as f:
+            lines = dict(enumerate(f.readlines()))
+            predictions = dict()
+            for windows in pred_types_score:
+                for p in windows:
+                    if lines[p[0].item()].replace("\n", "") in predictions:
+                        predictions[lines[p[0].item()].replace("\n", "")] = max(predictions[lines[p[0].item()].replace("\n", "")], p[1])
+                    else:
+                        predictions[lines[p[0].item()].replace("\n", "")] = p[1]
+
+        print("PREDICTION: ", predictions)
 
 if __name__ == "__main__":
     main()

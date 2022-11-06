@@ -130,4 +130,5 @@ dmypy.json
 
 # Model
 type-model/
+models/*
 .idea/

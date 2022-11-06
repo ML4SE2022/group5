@@ -45,34 +45,66 @@ docker build -t typespacebert .
 ```
 
 ```
-docker run -v ${PWD}/type-model:/type-model --gpus all typespacebert [arguments]
+docker run -v ${PWD}/models:/models --gpus all typespacebert [arguments]
 ```
 
-In case GPUs are not recognized by the docker container, make sure `nvidia-container-toolkit` is installed and the docker daemon is restarted. For a better understanding of the available arguments, consolut the description below. For convenience, we provide several use cases that may be of interest:
+In case GPUs are not recognized by the docker container, make sure `nvidia-container-toolkit` is installed and the docker daemon is restarted. For a better understanding of the available arguments, consolut the description below. For convenience, we provide several use cases that may be of interest (in terms of the arguments to provide the abvoce command with):
 
 1. Train `TypeSpaceBERT` from scratch on the full data set, using the same parameters as in the paper:
 
-   ```docker run --gpus all typespacebert --do_train True --custom_model_d 8 --local_dataset True```
+   ```--do_train True --custom_model_d 8 --local_dataset True```
 
 2. Train our classification baseline from scratch on the full data set, using the same parameters as in the paper:
 
-   ```docker run --gpus all typespacebert --do_train True --use_classifier True --window_size 8 --local_dataset True --custom_model_d 50000```
+   ```--do_train True --use_classifier True --window_size 8 --local_dataset True --custom_model_d 50000```
 
 3. Evaluate our provided `TypeSpaceBERT` on the full test set using the same parameters as in the paper:
 
-   ```docker run --gpus all typespacebert --do_eval True --window_size 128 --local_dataset True --use_model typespacebert-model.pth --use_typespace typespacebert-type_space.ann```
+   ```--do_eval True --window_size 128 --local_dataset True --use_model typespacebert-model.pth --use_typespace typespacebert-type_space.ann```
 
 4. Evaluate our provided basesline model on the full test set using the same parameters as in the paper:
 
-   ```docker run --gpus all typespacebert --do_eval True --window_size 8 --local_dataset True --use_model baseline-model.pth```
+   ```--do_eval True --window_size 8 --local_dataset True --use_model baseline-model.pth```
 
 If for any of the above commands, you would like to use the remote version `ManyTypes4TypeScript` instead of preprocessing the data locally, `--local_dataset` should simply be set to `False`.
 
-In some instances, we observed errors stemming from the `model = RobertaModel.from_pretrained("microsoft/codebert-base")` line in `train.py`. We were unable to identify the root cause of this, however, in all instance, re-building the container without caches before re-running our intended command (i.e., `docker build --no-cache-t typespacebert . && sudo docker build --no-cache -t typespacebert . && sudo docker run typespacebert --use_classifier True --do_train True --custom_model_d 50000`) solved the problem.
+In some instances, we observed errors stemming from the `model = RobertaModel.from_pretrained("microsoft/codebert-base")` line in `train.py`. We were unable to identify the root cause of this, however, in all instance, re-building the container without caches before re-running our intended command (i.e., `docker build --no-cache -t typespacebert . && docker run -v ${PWD}/models:/models --gpus all typespacebert [arguments]`) solved the problem.
 
 #### Expected results
 
-We expect that the results after 41 checkpoints (41000 training iterations) on the full data set, and 191 checkpoints (191000 iterations) of building the type space on the train set
+We expect that the results after 41 checkpoints (41000 training iterations) on the full data set, and 191 checkpoints (191000 iterations) of building the type space on the train set to resemble the results we presented in Table 5.1 of our paper.
+
+### Predictions
+
+To predict single instance types you need to format the input data according to the following format:
+
+<details>
+   <summary>Format</summary>
+
+   ```bash
+      $ docker run -v ${PWD}/models:/models --rm --gpus all typespacebert --do_predict '["import", "{", "reactive", ",", "ref", ",", "watch", ",", "Ref", "}", "from", "'@vue/composition-api'", ";", "interface", "Options", "<", "T", ">", "{", "pendingDelay", "?", ":", "number", "|", "Ref", "<", "number", ">", ";", "promise", "?", ":", "Promise", "<", "T", ">", "|", "Ref", "<", "Promise", "<", "T", ">", ">", "|", "Ref", "<", "Promise", "<", "T", ">", "|", "null", ">", "|", "null", ";", "}", "export", "function", "usePromise", "<", "T", ">", "(", "options", "=", "{", "}", ")", "{", "const", "state", "=", "reactive", "(", "{", "promise", ":", "ref", "<", "Promise", "<", "T", ">", "|", "null", ">", "(", "options", ".", "promise", "||", "null", ")", ",", "isPending", ":", "ref", "(", "true", ")", ",", "data", ":", "ref", "<", "T", "|", "null", ">", "(", "null", ")", ",", "error", ":", "ref", "<", "Error", "|", "null", ">", "(", "null", ")", ",", "isDelayOver", ":", "ref", "(", "false", ")", ",", "}", ")", ";", "let", "timerId", "=", "null", ";", "const", "localOptions", "=", "reactive", "(", "{", "pendingDelay", ":", "options", ".", "pendingDelay", "==", "null", "?", "200", ":", "options", ".", "pendingDelay", ",", "}", ")", ";", "function", "setupDelay", "(", ")", "{", "if", "(", "localOptions", ".", "pendingDelay", ">", "0", ")", "{", "state", ".", "isDelayOver", "=", "false", ";", "if", "(", "timerId", ")", "clearTimeout", "(", "timerId", ")", ";", "timerId", "=", "setTimeout", "(", "(", ")", "=>", "(", "state", ".", "isDelayOver", "=", "true", ")", ",", "localOptions", ".", "pendingDelay", ")", ";", "}", "else", "{", "state", ".", "isDelayOver", "=", "true", ";", "}", "}", "watch", "(", "(", ")", "=>", "state", ".", "promise", ",", "newPromise", "=>", "{", "state", ".", "isPending", "=", "true", ";", "state", ".", "error", "=", "null", ";", "if", "(", "!", "newPromise", ")", "{", "state", ".", "data", "=", "null", ";", "state", ".", "isDelayOver", "=", "false", ";", "if", "(", "timerId", ")", "clearTimeout", "(", "timerId", ")", ";", "timerId", "=", "null", ";", "return", ";", "}", "setupDelay", "(", ")", ";", "newPromise", ".", "then", "(", "value", "=>", "{", "if", "(", "state", ".", "promise", "===", "newPromise", ")", "{", "state", ".", "data", "=", "value", ";", "state", ".", "isPending", "=", "false", ";", "}", "}", ")", ".", "catch", "(", "err", "=>", "{", "if", "(", "state", ".", "promise", "===", "newPromise", ")", "{", "state", ".", "error", "=", "err", ";", "state", ".", "isPending", "=", "false", ";", "}", "}", ")", ";", "}", ")", ";", "return", "{", "state", ",", "options", ":", "localOptions", ",", "set", ":", "(", "p", ")", "=>", "(", "state", ".", "promise", "=", "p", ")", ",", "}", ";", "}"]' '[null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "Readonly", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "<MASK>", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "Promise", null, null, null, null, null, null, null, null, null, null, null, null, null]'
+   ```
+
+   ### Requirements
+   - `--do_predict` signals that a prediction needs to be made based on the provided model and type space. It expects two arguments:
+     - `input_ids` string of list of strings of code tokens.
+     - `m_labels` string of list of strings with the correspondings labels for the code tokens. 
+       - Insert `<MASK>` to mask a type for the model to predict
+       - `null` can also be types, therefore make sure that `null` types have the corresponding quotations like `"null"` to be recognized.
+     - A model called `typespacebert-model.pth` or specified using the arguments.
+     - A type space called `typespacebert-type_space.ann` or specified using the arguments.
+     - Make sure you have an input example that is larger then the used window size, otherwise no results will be returned.
+
+   ### Result
+   The result is printed out in the terminal in the following format, which indicates the predicted types with its corresponding confidence score: 
+
+   ```bash
+      PREDICTION: {'boolean': 0.15843932854290083, 'Props': 0.11041888897857288, 'string': 0.14256076847743712, 'number': 0.09823127675068363}
+   ```
+
+</details>
+
+---
 
 ### Run Manually
 
@@ -80,10 +112,6 @@ We expect that the results after 41 checkpoints (41000 training iterations) on t
 ```
 pip install -r requirements.txt
 ```
-
-### Predictions
-
-Currently, single instance predictions on the model is not fully implemented due to time constraints and complexity with respect to the data format. This feature is expected to be implemented in the upcoming week.
 
 ### File structure and contents
 
