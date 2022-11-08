@@ -78,15 +78,11 @@ We expect that the results after 41 checkpoints (41000 training iterations) on t
 
 To predict single instance types you need to format the input data according to the following format:
 
-<details>
-   <summary>Format</summary>
-
    ```
       $ docker run -v ${PWD}/models:/models --rm --gpus all typespacebert --do_predict '["import", "{", "reactive", ",", "ref", ",", "watch", ",", "Ref", "}", "from", "'@vue/composition-api'", ";", "interface", "Options", "<", "T", ">", "{", "pendingDelay", "?", ":", "number", "|", "Ref", "<", "number", ">", ";", "promise", "?", ":", "Promise", "<", "T", ">", "|", "Ref", "<", "Promise", "<", "T", ">", ">", "|", "Ref", "<", "Promise", "<", "T", ">", "|", "null", ">", "|", "null", ";", "}", "export", "function", "usePromise", "<", "T", ">", "(", "options", "=", "{", "}", ")", "{", "const", "state", "=", "reactive", "(", "{", "promise", ":", "ref", "<", "Promise", "<", "T", ">", "|", "null", ">", "(", "options", ".", "promise", "||", "null", ")", ",", "isPending", ":", "ref", "(", "true", ")", ",", "data", ":", "ref", "<", "T", "|", "null", ">", "(", "null", ")", ",", "error", ":", "ref", "<", "Error", "|", "null", ">", "(", "null", ")", ",", "isDelayOver", ":", "ref", "(", "false", ")", ",", "}", ")", ";", "let", "timerId", "=", "null", ";", "const", "localOptions", "=", "reactive", "(", "{", "pendingDelay", ":", "options", ".", "pendingDelay", "==", "null", "?", "200", ":", "options", ".", "pendingDelay", ",", "}", ")", ";", "function", "setupDelay", "(", ")", "{", "if", "(", "localOptions", ".", "pendingDelay", ">", "0", ")", "{", "state", ".", "isDelayOver", "=", "false", ";", "if", "(", "timerId", ")", "clearTimeout", "(", "timerId", ")", ";", "timerId", "=", "setTimeout", "(", "(", ")", "=>", "(", "state", ".", "isDelayOver", "=", "true", ")", ",", "localOptions", ".", "pendingDelay", ")", ";", "}", "else", "{", "state", ".", "isDelayOver", "=", "true", ";", "}", "}", "watch", "(", "(", ")", "=>", "state", ".", "promise", ",", "newPromise", "=>", "{", "state", ".", "isPending", "=", "true", ";", "state", ".", "error", "=", "null", ";", "if", "(", "!", "newPromise", ")", "{", "state", ".", "data", "=", "null", ";", "state", ".", "isDelayOver", "=", "false", ";", "if", "(", "timerId", ")", "clearTimeout", "(", "timerId", ")", ";", "timerId", "=", "null", ";", "return", ";", "}", "setupDelay", "(", ")", ";", "newPromise", ".", "then", "(", "value", "=>", "{", "if", "(", "state", ".", "promise", "===", "newPromise", ")", "{", "state", ".", "data", "=", "value", ";", "state", ".", "isPending", "=", "false", ";", "}", "}", ")", ".", "catch", "(", "err", "=>", "{", "if", "(", "state", ".", "promise", "===", "newPromise", ")", "{", "state", ".", "error", "=", "err", ";", "state", ".", "isPending", "=", "false", ";", "}", "}", ")", ";", "}", ")", ";", "return", "{", "state", ",", "options", ":", "localOptions", ",", "set", ":", "(", "p", ")", "=>", "(", "state", ".", "promise", "=", "p", ")", ",", "}", ";", "}"]' '[null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "Readonly", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "<MASK>", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "Promise", null, null, null, null, null, null, null, null, null, null, null, null, null]'
    ```
-</details>
 
-   ### Requirements
+   #### Requirements
    - `--do_predict` signals that a prediction needs to be made based on the provided model and type space. It expects two arguments:
      - `input_ids` string of list of strings of code tokens.
      - `m_labels` string of list of strings with the correspondings labels for the code tokens. 
@@ -96,14 +92,12 @@ To predict single instance types you need to format the input data according to 
      - A type space called `typespacebert-type_space.ann` or specified using the arguments.
      - Make sure you have an input example that is larger then the used window size, otherwise no results will be returned.
 
-   ### Result
+   #### Result
    The result is printed out in the terminal in the following format, which indicates the predicted types with its corresponding confidence score: 
 
    ```bash
       PREDICTION: {'boolean': 0.15843932854290083, 'Props': 0.11041888897857288, 'string': 0.14256076847743712, 'number': 0.09823127675068363}
    ```
-
-
 
 ---
 
