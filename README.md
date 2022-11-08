@@ -26,7 +26,7 @@ tar -xvzf ManyTypes4TypeScript.tar.gz
 Finally, install the required dependencies and preprocess the data into the appropriate format using the `preprocess_dataset` python script:
 
 ```
-pip install requirements.txt
+pip install -r requirements.txt
 python preprocess_dataset.py -v <vocab-size> 
 ```
 
