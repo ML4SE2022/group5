@@ -112,23 +112,23 @@ pip install -r requirements.txt
 
 ```
 📦group5
- ┣ 📂50k_types # Small dataset sample
+ ┣ 📜__init__.py
+ ┣ 📂dataset # Dataset data containing development size datasets (or the full downloaded dataset)
  ┃ ┣ 📜test1.jsonl # Test set data
  ┃ ┣ 📜train4.jsonl # Train set data
  ┃ ┣ 📜valid1.jsonl # Validation set data
  ┃ ┗ 📜vocab_50000.txt # Type vocabulary for the entire data set
  ┣ 📂src
- ┃ ┣ 📜ManyTypes4TypeScript.py # Dataset utilities
  ┃ ┣ 📜__init__.py
+ ┃ ┣ 📜ManyTypes4TypeScript.py # Dataset utilities
  ┃ ┣ 📜train.py # Training and testing functionality
  ┃ ┣ 📜trainFunctions.py # Model functionality tools
  ┃ ┗ 📜typeSpace.py # Type Space generation tools
+ ┣ 📂models # Models and type spaces are stored here
  ┣ 📜CodeBertExtension.ipynb # Interactive notebook
  ┣ 📜Dockerfile # Replication container file
  ┣ 📜README.md
- ┣ 📜__init__.py
  ┣ 📜requirements.txt
- ┗ 📜type4py_discussion_notes.md
 ```
 
 
